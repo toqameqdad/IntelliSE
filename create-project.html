@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Project | IntelliSE</title>
+    <link rel="stylesheet" href="./style.css">
+</head>
+
+<body>
+
+    <header>
+        <nav class="navbar">
+
+            <a href="./dashboard.html" class="logo">
+                IntelliSE
+            </a>
+
+            <ul class="nav-links">
+                <li><a href="./dashboard.html">Dashboard</a></li>
+                <li><a href="./dashboard.html#projects">My Projects</a></li>
+            </ul>
+
+            <button id="logoutButton" class="primary-button">
+                Logout
+            </button>
+
+        </nav>
+    </header>
+
+    <main>
+
+        <section class="get-started">
+
+            <h2>Create New Project</h2>
+
+            <p>
+                Tell us about your software project.
+                IntelliSE will help you analyze your idea.
+            </p>
+
+            <form id="createProjectForm">
+
+                <label for="projectName">Project Name</label>
+
+                <input
+                    type="text"
+                    id="projectName"
+                    placeholder="Enter your project name"
+                    required
+                >
+
+                <label for="projectDescription">Project Description</label>
+
+                <textarea
+                    id="projectDescription"
+                    placeholder="Describe your software project and its main idea..."
+                    rows="6"
+                    required
+                ></textarea>
+
+                <button type="submit" class="primary-button">
+                    Submit Project
+                </button>
+
+            </form>
+
+        </section>
+
+    </main>
+
+    <script src="./script.js"></script>
+
+</body>
+</html>

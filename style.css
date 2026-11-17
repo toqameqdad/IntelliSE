@@ -1,0 +1,365 @@
+
+/*  1. Global Settings */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: #ffffff;
+    color: #352747;
+    line-height: 1.6;
+}
+
+
+/* 2. Navigation Bar */
+
+header {
+    width: 100%;
+    background: #ffffff;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    box-shadow: 0 3px 15px rgba(80, 50, 110, 0.07);
+}
+
+.navbar {
+    max-width: 1200px;
+    margin: auto;
+    padding: 18px 30px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.logo {
+    font-size: 28px;
+    font-weight: 800;
+    color: #9068bd;
+    text-decoration: none;
+    letter-spacing: -1px;
+}
+
+.nav-links {
+    display: flex;
+    align-items: center;
+    gap: 35px;
+    list-style: none;
+}
+
+.nav-links a {
+    text-decoration: none;
+    color: #514660;
+    font-size: 15px;
+    font-weight: 600;
+    transition: color 0.3s ease;
+}
+
+.nav-links a:hover {
+    color: #a77bd5;
+}
+
+.nav-button {
+    background: #9671c2;
+    color: #ffffff;
+    text-decoration: none;
+    padding: 11px 25px;
+    border-radius: 30px;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.nav-button:hover {
+    background: #7851a8;
+    transform: translateY(-3px);
+}
+
+
+/* 3. Hero Section */
+
+.hero {
+    min-height: 590px;
+    padding: 100px 25px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    background: linear-gradient(
+        135deg,
+        #f8f4ff 0%,
+        #eee5fa 50%,
+        #ffffff 100%
+    );
+}
+
+.hero-content {
+    max-width: 850px;
+}
+
+.subtitle {
+    color: #9871c2;
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 3px;
+    margin-bottom: 25px;
+}
+
+.hero h1 {
+    color: #352747;
+    font-size: 58px;
+    font-weight: 800;
+    line-height: 1.2;
+    margin-bottom: 25px;
+}
+
+.hero h1 span {
+    display: block;
+    color: #9870c7;
+}
+
+.hero-description {
+    max-width: 690px;
+    margin: 0 auto 35px;
+    color: #766d82;
+    font-size: 17px;
+    line-height: 1.9;
+}
+
+
+/* 4. Primary Buttons */
+
+.primary-button {
+    display: inline-block;
+    background: linear-gradient(
+        135deg,
+        #a987d3,
+        #8058b6
+    );
+    color: #ffffff;
+    text-decoration: none;
+    padding: 15px 35px;
+    border-radius: 30px;
+    font-size: 15px;
+    font-weight: 700;
+    box-shadow: 0 7px 20px rgba(128, 88, 182, 0.2);
+    transition: all 0.3s ease;
+}
+
+.primary-button:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 25px rgba(128, 88, 182, 0.3);
+}
+
+
+/* 5. Features Section */
+
+.features {
+    padding: 90px 30px;
+    background: #ffffff;
+}
+
+.section-heading {
+    text-align: center;
+    margin-bottom: 55px;
+}
+
+.section-heading h2 {
+    color: #392b4d;
+    font-size: 36px;
+    font-weight: 800;
+    margin-bottom: 12px;
+}
+
+.section-heading p {
+    color: #82788e;
+    font-size: 16px;
+}
+
+.features-container {
+    max-width: 1150px;
+    margin: auto;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 22px;
+}
+
+.feature-card {
+    background: #faf8fd;
+    border: 1px solid #eee5f7;
+    border-radius: 18px;
+    padding: 35px 22px;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.feature-card:hover {
+    transform: translateY(-8px);
+    background: #f3ecfb;
+    border-color: #d8c3ef;
+    box-shadow: 0 12px 25px rgba(100, 70, 140, 0.1);
+}
+
+.feature-card h3 {
+    color: #8058ae;
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 15px;
+}
+
+.feature-card p {
+    color: #766d82;
+    font-size: 14px;
+    line-height: 1.8;
+}
+
+
+/* =================================
+   6. About Section
+================================= */
+
+.about {
+    padding: 90px 25px;
+    text-align: center;
+    background: #f8f5fc;
+}
+
+.about h2 {
+    color: #392b4d;
+    font-size: 36px;
+    font-weight: 800;
+    margin-bottom: 25px;
+}
+
+.about p {
+    max-width: 800px;
+    margin: auto;
+    color: #756b82;
+    font-size: 16px;
+    line-height: 2;
+}
+
+
+/*  7. Get Started Section */
+
+.get-started {
+    padding: 90px 25px;
+    text-align: center;
+    background: linear-gradient(
+        135deg,
+        #eee5fa,
+        #f9f6fd
+    );
+}
+
+.get-started h2 {
+    color: #392b4d;
+    font-size: 35px;
+    font-weight: 800;
+    margin-bottom: 15px;
+}
+
+.get-started p {
+    color: #776d84;
+    font-size: 16px;
+    margin-bottom: 30px;
+}
+
+
+/* 8. Footer */
+
+footer {
+    background: #352747;
+    color: #eee5f7;
+    text-align: center;
+    padding: 25px;
+    font-size: 14px;
+}
+
+
+/* 9. Responsive Design */
+
+@media (max-width: 950px) {
+
+    .features-container {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .hero h1 {
+        font-size: 46px;
+    }
+
+}
+
+@media (max-width: 600px) {
+
+    .navbar {
+        padding: 15px;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 18px;
+    }
+
+    .logo {
+        font-size: 25px;
+    }
+
+    .nav-links {
+        gap: 18px;
+    }
+
+    .nav-links a {
+        font-size: 13px;
+    }
+
+    .nav-button {
+        padding: 9px 18px;
+    }
+
+    .hero {
+        min-height: 500px;
+        padding: 75px 20px;
+    }
+
+    .hero h1 {
+        font-size: 36px;
+    }
+
+    .hero-description {
+        font-size: 15px;
+    }
+
+    .features {
+        padding: 65px 20px;
+    }
+
+    .features-container {
+        grid-template-columns: 1fr;
+    }
+
+    .section-heading h2,
+    .about h2 {
+        font-size: 29px;
+    }
+
+    .about {
+        padding: 65px 20px;
+    }
+
+    .get-started {
+        padding: 65px 20px;
+    }
+
+    .get-started h2 {
+        font-size: 27px;
+    }
+
+}
+.nav-links a.active {
+    color: #8b5cf6;
+    font-weight: bold;
+}
