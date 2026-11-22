@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/IntelliSE.API/IntelliSE.API.csproj" />
+    <Project Path="src/IntelliSE.Application/IntelliSE.Application.csproj" />
+    <Project Path="src/IntelliSE.Domain/IntelliSE.Domain.csproj" />
+    <Project Path="src/IntelliSE.Infrastructure/IntelliSE.Infrastructure.csproj" />
+  </Folder>
+</Solution>

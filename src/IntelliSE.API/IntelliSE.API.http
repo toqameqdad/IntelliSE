@@ -1,0 +1,6 @@
+@IntelliSE.API_HostAddress = http://localhost:5211
+
+GET {{IntelliSE.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
