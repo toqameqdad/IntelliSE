@@ -1,2 +1,12 @@
-.venv/
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Environment
 .env
+.venv/
+
+# .NET
+bin/
+obj/
