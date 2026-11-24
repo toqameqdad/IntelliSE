@@ -95,3 +95,67 @@ class ClarificationAnswersInput(ProjectInput):
 
 class RequirementsGenerationInput(ProjectInput):
     answers: list[ClarificationAnswer] = Field(default_factory=list)
+
+
+
+class SRSInput(BaseSchema):
+    project_name: str = Field(min_length=1)
+    project_description: str = Field(min_length=20)
+    functional_requirements: list[Requirement] = Field(min_length=1)
+    non_functional_requirements: list[Requirement] = Field(min_length=1)
+
+
+class SRSIntroduction(BaseSchema):
+    purpose: str
+    scope: str
+    definitions_and_acronyms: list[str]
+
+
+class SRSOverallDescription(BaseSchema):
+    product_perspective: str
+    user_classes: list[str]
+    operating_environment: str
+    design_and_implementation_constraints: list[str]
+    assumptions_and_dependencies: list[str]
+
+
+class SRSWorkflow(BaseSchema):
+    main_workflow: list[str]
+    stage_approval_and_dependency_rules: list[str]
+    project_status: list[str]
+
+
+class SRSRequirement(BaseSchema):
+    id: str
+    description: str
+
+
+class SRSNonFunctionalRequirement(BaseSchema):
+    id: str
+    category: str
+    description: str
+
+
+class SRSDataRequirements(BaseSchema):
+    main_data_entities: list[str]
+    data_ownership_and_deletion: str
+
+
+class SRSExternalInterfaces(BaseSchema):
+    user_interface: list[str]
+    ai_service_interface: str
+    email_interface: str
+    export_interface: str
+
+
+class SRSResult(BaseSchema):
+    introduction: SRSIntroduction
+    overall_description: SRSOverallDescription
+    system_workflow_and_state_rules: SRSWorkflow
+    functional_requirements: list[SRSRequirement]
+    non_functional_requirements: list[SRSNonFunctionalRequirement]
+    data_requirements: SRSDataRequirements
+    business_rules: list[str]
+    external_interface_requirements: SRSExternalInterfaces
+    acceptance_criteria: list[str]
+    implementation_decisions: list[str]
