@@ -10,11 +10,14 @@ from schemas import (
     ProjectInput,
     RequirementsGenerationInput,
     RequirementsResult,
+	SRSInput,
+	SRSResult,
 )
 from gemini_service import (
     analyze_project,
     generate_requirements,
     reanalyze_project,
+    generate_srs,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -92,6 +95,27 @@ def generate_project_requirements(
                 "message": "Failed to generate requirements.",
             },
         )
+
+
+@app.post(
+    "/api/ai/srs/generate",
+    response_model=SRSResult,
+)
+def generate_project_srs(data: SRSInput):
+    try:
+        return generate_srs(data)
+
+    except Exception:
+        logger.exception("SRS generation failed")
+
+        return JSONResponse(
+            status_code=500,
+            content={
+                "code": "AI_GENERATION_FAILED",
+                "message": "Failed to generate SRS.",
+            },
+        )
+
 
 
 @app.exception_handler(RequestValidationError)

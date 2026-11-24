@@ -10,6 +10,8 @@ from schemas import (
     ProjectInput,
     RequirementsGenerationInput,
     RequirementsResult,
+    SRSInput,
+    SRSResult,
 )
 
 load_dotenv()
@@ -21,7 +23,7 @@ if not api_key:
 
 client = genai.Client(api_key=api_key)
 
-MODEL_NAME = "gemini-3.5-flash-lite"
+MODEL_NAME = "gemini-3.8-flash"
 
 
 def generate_requirements(
@@ -235,3 +237,155 @@ def reanalyze_project(
         raise ValueError("Gemini returned an empty response")
 
     return ClarificationResult.model_validate_json(response.text)
+
+
+
+def generate_srs(data: SRSInput) -> SRSResult:
+    functional_requirements = "\n".join(
+        f"- {item.description}"
+        for item in data.functional_requirements
+    )
+
+    non_functional_requirements = "\n".join(
+        f"- {item.description} (Priority: {item.priority})"
+        for item in data.non_functional_requirements
+    )
+
+    prompt = f"""
+    You are a professional software requirements analyst.
+
+	Standards and SRS Guidelines:
+
+	- Use ISO/IEC/IEEE 29148:2018 as the primary reference
+	for requirements engineering principles and SRS quality.
+
+	- Use the traditional IEEE 830-style SRS outline as a
+	structural reference, while following the exact
+	10-section structure defined in the output schema.
+
+	- Ensure that requirements are clear, unambiguous,
+	complete, consistent, feasible, verifiable, and traceable.
+
+	- Each requirement must express one clear,
+	testable system behavior or quality constraint.
+
+	- Avoid vague terms such as "fast", "user-friendly",
+	or "secure" unless supported by measurable criteria.
+
+	- Maintain consistency between functional requirements,
+	non-functional requirements, business rules,
+	workflows, and acceptance criteria.
+
+	- Do not claim formal compliance or certification
+	with either standard.
+
+    Generate a complete Software Requirements Specification (SRS)
+    for the following software project.
+
+    Project Name:
+    {data.project_name}
+
+    Project Description:
+    {data.project_description}
+
+    Approved Functional Requirements:
+    {functional_requirements}
+
+    Approved Non-Functional Requirements:
+    {non_functional_requirements}
+
+    Generate the SRS using these sections:
+
+    1. Introduction:
+       - Purpose
+       - Scope
+       - Definitions and Acronyms
+
+    2. Overall Description:
+       - Product Perspective
+       - User Classes
+       - Operating Environment
+       - Design and Implementation Constraints
+       - Assumptions and Dependencies
+
+    3. System Workflow and State Rules:
+       - Main Workflow
+       - Stage Approval and Dependency Rules
+       - Project Status
+
+    4. Functional Requirements
+
+    5. Non-Functional Requirements
+
+    6. Data Requirements:
+       - Main Data Entities
+       - Data Ownership and Deletion
+
+    7. Business Rules
+
+    8. External Interface Requirements:
+       - User Interface
+       - AI Service Interface
+       - Email Interface
+       - Export Interface
+
+    9. Acceptance Criteria
+
+    10. Items Reserved for Implementation Decisions
+
+    Rules:
+    - Generate the SRS for the user's project, not for IntelliSE.
+    - Preserve the meaning of all approved requirements.
+    - Do not remove, contradict, or replace approved requirements.
+    - Do not invent features or unsupported project details.
+    - Do not assume technologies, platforms, integrations,
+      user roles, or implementation decisions.
+    - If information is unknown, state "Not specified".
+    - Assign sequential IDs to functional requirements:
+      FR-001, FR-002, and so on.
+    - Assign sequential IDs to non-functional requirements:
+      NFR-001, NFR-002, and so on.
+    - Each functional requirement must contain an ID and description.
+    - Each non-functional requirement must contain an ID,
+      category, and description.
+    - Keep the SRS professional, clear, and specific.
+    - Avoid unnecessary repetition.
+    - Do not add requirements that are not supported
+      by the project description or approved requirements.
+    - Return all required sections using the provided JSON schema.
+	- Do not infer user classes, operating environments,
+	  data entities, assumptions, workflows, or interfaces
+	  unless explicitly supported by the input.
+	- Logical assumptions must not be presented as confirmed
+	  project facts.
+	- Use "Not specified" when information is unavailable.
+	- Derive workflow steps and acceptance criteria directly
+	  from the approved functional and non-functional requirements.
+
+	- Identify entities and user classes only when they are
+	  directly supported by the project description or requirements.
+
+	- Do not replace information that can be directly derived
+	  from the input with "Not specified".
+
+	- Distinguish between directly supported information
+	  and information that is genuinely unknown.
+    """
+
+    response = client.models.generate_content(
+        model=MODEL_NAME,
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            response_schema=clean_schema(
+                SRSResult.model_json_schema(by_alias=True)
+            ),
+            temperature=0.2,
+            max_output_tokens=6000,
+        ),
+    )
+
+    if not response.text:
+        raise ValueError("Gemini returned an empty response")
+
+    return SRSResult.model_validate_json(response.text)
