@@ -7,6 +7,7 @@ from google.genai import types
 from schemas import (
     ClarificationAnswersInput,
     ClarificationResult,
+    ContextDiagramResult,
     ProjectInput,
     RequirementsGenerationInput,
     RequirementsResult,
@@ -23,7 +24,7 @@ if not api_key:
 
 client = genai.Client(api_key=api_key)
 
-MODEL_NAME = "gemini-3.8-flash"
+MODEL_NAME = "gemini-3.5-flash-lite"
 
 
 def generate_requirements(
@@ -251,36 +252,36 @@ def generate_srs(data: SRSInput) -> SRSResult:
         for item in data.non_functional_requirements
     )
 
+        
     prompt = f"""
     You are a professional software requirements analyst.
 
-	Standards and SRS Guidelines:
+    STANDARDS AND SRS GUIDELINES:
 
-	- Use ISO/IEC/IEEE 29148:2018 as the primary reference
-	for requirements engineering principles and SRS quality.
+    - Use ISO/IEC/IEEE 29148:2018 as the primary reference
+    for requirements engineering principles and SRS quality.
 
-	- Use the traditional IEEE 830-style SRS outline as a
-	structural reference, while following the exact
-	10-section structure defined in the output schema.
+    - Use the traditional IEEE 830-style SRS outline as a
+    structural reference, while following the exact
+    10-section structure defined in the output schema.
 
-	- Ensure that requirements are clear, unambiguous,
-	complete, consistent, feasible, verifiable, and traceable.
+    - Ensure requirements are clear, unambiguous, complete,
+    consistent, feasible, verifiable, and traceable.
 
-	- Each requirement must express one clear,
-	testable system behavior or quality constraint.
+    - Each requirement must express one clear, testable
+    system behavior or quality constraint.
 
-	- Avoid vague terms such as "fast", "user-friendly",
-	or "secure" unless supported by measurable criteria.
+    - Avoid vague terms such as "fast", "user-friendly",
+    or "secure" unless supported by measurable criteria.
 
-	- Maintain consistency between functional requirements,
-	non-functional requirements, business rules,
-	workflows, and acceptance criteria.
+    - Maintain consistency between functional requirements,
+    non-functional requirements, business rules,
+    workflows, and acceptance criteria.
 
-	- Do not claim formal compliance or certification
-	with either standard.
+    - Do not claim formal compliance or certification
+    with either standard.
 
-    Generate a complete Software Requirements Specification (SRS)
-    for the following software project.
+    PROJECT INFORMATION:
 
     Project Name:
     {data.project_name}
@@ -294,82 +295,197 @@ def generate_srs(data: SRSInput) -> SRSResult:
     Approved Non-Functional Requirements:
     {non_functional_requirements}
 
-    Generate the SRS using these sections:
+    TASK:
+
+    Generate a complete Software Requirements Specification
+    (SRS) for the project using the following sections:
 
     1. Introduction:
-       - Purpose
-       - Scope
-       - Definitions and Acronyms
+    - Purpose
+    - Scope
+    - Definitions and Acronyms
 
     2. Overall Description:
-       - Product Perspective
-       - User Classes
-       - Operating Environment
-       - Design and Implementation Constraints
-       - Assumptions and Dependencies
+    - Product Perspective
+    - User Classes
+    - Operating Environment
+    - Design and Implementation Constraints
+    - Assumptions and Dependencies
 
     3. System Workflow and State Rules:
-       - Main Workflow
-       - Stage Approval and Dependency Rules
-       - Project Status
+    - Main Workflow
+    - Stage Approval and Dependency Rules
+    - Project Status
 
     4. Functional Requirements
 
     5. Non-Functional Requirements
 
     6. Data Requirements:
-       - Main Data Entities
-       - Data Ownership and Deletion
+    - Main Data Entities
+    - Data Ownership and Deletion
 
     7. Business Rules
 
     8. External Interface Requirements:
-       - User Interface
-       - AI Service Interface
-       - Email Interface
-       - Export Interface
+    - User Interface
+    - AI Service Interface
+    - Email Interface
+    - Export Interface
 
     9. Acceptance Criteria
 
     10. Items Reserved for Implementation Decisions
 
-    Rules:
-    - Generate the SRS for the user's project, not for IntelliSE.
-    - Preserve the meaning of all approved requirements.
-    - Do not remove, contradict, or replace approved requirements.
-    - Do not invent features or unsupported project details.
-    - Do not assume technologies, platforms, integrations,
-      user roles, or implementation decisions.
-    - If information is unknown, state "Not specified".
+    INFORMATION ACCURACY AND REASONING RULES:
+
+    1. Treat the Project Description as the source of
+    project context, scope, and explicitly mentioned
+    capabilities.
+
+    2. Treat the Approved Functional and Non-Functional
+    Requirements as authoritative requirements.
+    Preserve their meaning, priority, and intended behavior.
+
+    3. Do not remove, contradict, weaken, or replace
+    approved requirements.
+
+    4. Distinguish between three types of information
+    during generation:
+
+    - Explicit: Directly stated in the input.
+    - Derived: A reasonable conclusion that follows
+        logically from the provided information.
+    - Unknown: Information that cannot be established
+        from the available input.
+
+    5. Use explicit and logically derived information
+    when appropriate. Do not restrict the SRS to
+    copying the input word for word.
+
+    6. Derived information must:
+    - Have a clear basis in the provided input.
+    - Be necessary or useful for explaining the system.
+    - Never introduce new features, business policies,
+        technical decisions, or unsupported constraints.
+    - Never be presented as an explicitly approved decision.
+
+    7. Do not invent technologies, platforms, integrations,
+    user roles, permissions, numerical targets,
+    workflows, or implementation decisions.
+
+    8. If information is unknown, use "Not specified".
+    Do not fill gaps with assumptions presented as facts.
+
+    9. When the Project Description and approved
+    requirements provide conflicting information,
+    preserve the approved requirement and do not
+    silently resolve or modify the conflict.
+
+    REQUIREMENT PRESERVATION AND CONSISTENCY:
+
+    - Preserve every approved functional and
+    non-functional requirement.
+
+    - Do not unnecessarily split one requirement into
+    multiple requirements or combine unrelated requirements.
+
+    - You may improve wording for clarity, but must
+    preserve the original meaning and scope.
+
+    - Do not add new functional or non-functional
+    requirements unless they are explicitly supported
+    by the provided project information.
+
+    - Avoid duplicating the same requirement across
+    different sections unless the repetition serves
+    a necessary documentation purpose.
+
+    - Ensure that business rules and workflow steps
+    are derived from the provided project information.
+
+    - Identify user classes and data entities from
+    explicitly stated or logically supported information.
+
+    WORKFLOW AND ACCEPTANCE CRITERIA:
+
+    - Derive workflow steps and state transitions
+    from the approved requirements and project description.
+
+    - Do not invent approval stages, status values,
+    dependencies, or conditions that are not supported
+    by the input.
+
+    - Each acceptance criterion must be specific,
+    observable, and verifiable.
+
+    - Where possible, express acceptance criteria
+    as measurable conditions or expected system behavior.
+
+    - Acceptance criteria must cover the relevant
+    functional and non-functional requirements.
+
+    - Do not introduce new functionality through
+    acceptance criteria.
+
+    NON-FUNCTIONAL REQUIREMENTS:
+
+    - Preserve all provided measurable values and constraints.
+
+    - Do not invent performance targets, availability
+    percentages, capacity limits, or security standards.
+
+    - Do not turn vague quality expectations into
+    specific numerical requirements without evidence.
+
+    - Where a requirement cannot be objectively verified
+    because necessary details are missing, preserve
+    its meaning and avoid inventing measurement criteria.
+
+    IDENTIFIERS AND OUTPUT:
+
     - Assign sequential IDs to functional requirements:
-      FR-001, FR-002, and so on.
+    FR-001, FR-002, and so on.
+
     - Assign sequential IDs to non-functional requirements:
-      NFR-001, NFR-002, and so on.
-    - Each functional requirement must contain an ID and description.
-    - Each non-functional requirement must contain an ID,
-      category, and description.
-    - Keep the SRS professional, clear, and specific.
-    - Avoid unnecessary repetition.
-    - Do not add requirements that are not supported
-      by the project description or approved requirements.
-    - Return all required sections using the provided JSON schema.
-	- Do not infer user classes, operating environments,
-	  data entities, assumptions, workflows, or interfaces
-	  unless explicitly supported by the input.
-	- Logical assumptions must not be presented as confirmed
-	  project facts.
-	- Use "Not specified" when information is unavailable.
-	- Derive workflow steps and acceptance criteria directly
-	  from the approved functional and non-functional requirements.
+    NFR-001, NFR-002, and so on.
 
-	- Identify entities and user classes only when they are
-	  directly supported by the project description or requirements.
+    - Each functional requirement must contain an ID
+    and description.
 
-	- Do not replace information that can be directly derived
-	  from the input with "Not specified".
+    - Each non-functional requirement must contain
+    an ID, category, and description.
 
-	- Distinguish between directly supported information
-	  and information that is genuinely unknown.
+    - Keep the SRS professional, clear, specific,
+    and consistent.
+
+    - Avoid unnecessary repetition and generic descriptions.
+
+    - Do not generate content for IntelliSE unless
+    IntelliSE is the actual project being described.
+
+    - Return all required sections using the provided
+    JSON schema.
+
+    FINAL VALIDATION BEFORE OUTPUT:
+
+    Before returning the SRS, internally verify that:
+
+    1. All approved requirements are preserved.
+    2. No unsupported features or technical decisions
+    have been introduced.
+    3. Explicit information is not incorrectly marked
+    as unknown.
+    4. Derived information is logically supported.
+    5. Workflows and business rules are consistent
+    with the requirements.
+    6. Acceptance criteria are testable and do not
+    introduce new requirements.
+    7. Requirement IDs are sequential and unique.
+    8. All required sections and fields are populated.
+    9. The output follows the provided JSON schema.
+
+    Return only valid JSON matching the provided schema.
     """
 
     response = client.models.generate_content(
@@ -389,3 +505,173 @@ def generate_srs(data: SRSInput) -> SRSResult:
         raise ValueError("Gemini returned an empty response")
 
     return SRSResult.model_validate_json(response.text)
+
+
+
+
+CONTEXT_DIAGRAM_PROMPT = """
+You are a professional software engineer specialized in
+System Context Diagram generation.
+
+Your task is to generate a System Context Diagram based
+strictly on the provided latest approved SRS.
+
+GENERAL RULES:
+
+- Identify the main system being described.
+- Identify external entities that interact directly with the system.
+- Include only entities supported by the SRS.
+- Identify the main data flows between the system and each
+  external entity.
+- Every data flow must connect the main system to an external entity.
+- Specify the direction of each data flow correctly.
+- Use short, clear, and specific labels describing the actual
+  information being exchanged.
+- Separate input and output flows when they represent different
+  types of information.
+- Do not combine unrelated operations into one vague data flow.
+- Do not omit important interactions just to reduce the number
+  of data flows.
+- Group related interactions only when they have the same source,
+  target, and direction.
+- Prefer completeness over excessive simplification.
+- A context diagram should represent the system's major external
+  interactions without listing every individual functional requirement.
+
+EXTERNAL ENTITIES:
+
+- Identify distinct user classes separately when the SRS defines
+  different roles or access levels.
+- Do not merge different user classes into one generic User entity.
+- Include external services only when the SRS explicitly identifies
+  them or clearly describes their direct interaction with the system.
+- Do not include internal system components, databases, or modules
+  as external entities.
+- Do not infer external integrations from general functional
+  requirements.
+- For example, do not assume a Payment Gateway, Email Service,
+  SMS Service, or another external service unless supported by the SRS.
+- Do not invent users, external systems, integrations, or data flows.
+
+DATA FLOW SPECIFICITY:
+
+- Use labels that identify the actual information or requests
+  being exchanged.
+- Avoid vague labels such as:
+  "System Data", "Information", "Data", "User Data",
+  "Admin Management Commands", "AI Outputs",
+  and "Dashboard Information".
+- Include the main categories of interaction whenever supported
+  by the SRS, such as:
+  authentication, project data submission, clarification answers,
+  editing, review, approval, administrative operations,
+  AI generation requests, generated outputs, and export requests.
+- Do not list every individual action as a separate flow if
+  related actions can be grouped clearly.
+- However, do not group unrelated interactions under generic labels.
+- Make sure each label communicates what is being sent,
+  not merely the general purpose of the interaction.
+
+EXTERNAL SERVICE INTERACTIONS:
+
+- For an external AI service, include:
+  * System to AI Service: relevant input data, clarification answers,
+    and generation or analysis requests described in the SRS.
+  * AI Service to System: generated outputs, analysis findings,
+    clarification questions, and other supported results.
+- For an external email service, describe the actual email requests
+  or notification requests sent by the system.
+- Do not represent email content as a response from the email
+  service unless the SRS explicitly describes such a response.
+- Apply these rules only when the corresponding external service
+  is supported by the SRS.
+- Do not assume that an external service sends a response unless
+  this is explicitly supported.
+
+AMBIGUITY AND VALIDATION:
+
+- Do not turn ambiguous requirements into confirmed data flows.
+- If a requirement uses uncertain wording such as "may",
+  do not treat the described behavior as mandatory.
+- If an entity or interaction is possible but not explicitly
+  supported by the SRS, do not include it in the diagram.
+- Instead, add a warning explaining the missing information.
+- Distinguish explicitly stated information from assumptions.
+- Never present assumptions as confirmed facts.
+- Do not include implementation details.
+- If information is insufficient, include a warning explaining
+  what is missing.
+- Distinguish between navigation and actual data exchange.
+- Do not create a data flow for simple page navigation unless
+  it represents a meaningful request or interaction with the system.
+- Do not generate use cases, activity diagrams, or object diagrams.
+
+
+CRITICAL CONTEXT DIAGRAM STRUCTURE:
+
+- The main system has the reserved ID "system".
+- Every data flow MUST have the main system as either
+  its source or its target.
+- The only allowed flow directions are:
+  * External Entity -> system
+  * system -> External Entity
+- NEVER create a flow directly between two external entities.
+- NEVER create a flow between two external entities,
+  even if they communicate with each other through an integration.
+- All communication between external entities must be represented
+  as two separate flows through the main system, but only when
+  supported by the SRS.
+
+VALID EXAMPLES:
+- user -> system
+- system -> user
+- system -> ai_service
+- ai_service -> system
+
+INVALID EXAMPLES:
+- user -> ai_service
+- ai_service -> email_service
+- administrator -> user
+
+Before returning the JSON, verify every data flow:
+- Its source or target must be "system".
+- Its other endpoint must be a declared external entity.
+- No flow may connect two external entities directly.
+
+If a flow violates these rules, correct it before returning
+the final JSON.
+
+
+LATEST APPROVED SRS:
+
+{srs_content}
+
+Return only valid JSON matching the provided schema.
+"""
+
+
+def generate_context_diagram(srs_content: str) -> ContextDiagramResult:
+    if not srs_content.strip():
+        raise ValueError("SRS content cannot be empty")
+
+    prompt = CONTEXT_DIAGRAM_PROMPT.format(
+        srs_content=srs_content
+    )
+
+    response = client.models.generate_content(
+        model=MODEL_NAME,
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            response_schema=clean_schema(
+                ContextDiagramResult.model_json_schema(by_alias=True)
+            ),
+            temperature=0.2,
+            max_output_tokens=3000,
+        ),
+    )
+
+    if not response.text:
+        raise ValueError("Gemini returned an empty response")
+
+    return ContextDiagramResult.model_validate_json(response.text)

@@ -159,3 +159,74 @@ class SRSResult(BaseSchema):
     external_interface_requirements: SRSExternalInterfaces
     acceptance_criteria: list[str]
     implementation_decisions: list[str]
+
+
+
+class ContextDiagramSystem(BaseSchema):
+    id: Literal["system"] = "system"
+    name: str = Field(min_length=1)
+    description: str = Field(min_length=1)
+
+
+class ContextExternalEntity(BaseSchema):
+    id: str = Field(min_length=1)
+    name: str = Field(min_length=1)
+    description: str = Field(min_length=1)
+
+
+class ContextDataFlow(BaseSchema):
+    id: str = Field(min_length=1)
+    source: str = Field(min_length=1)
+    target: str = Field(min_length=1)
+    label: str = Field(min_length=1)
+
+
+class ContextDiagramResult(BaseSchema):
+    diagram_type: Literal["context"] = "context"
+    system: ContextDiagramSystem
+    external_entities: list[ContextExternalEntity]
+    data_flows: list[ContextDataFlow]
+    warnings: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_diagram(self):
+        entity_ids = [entity.id for entity in self.external_entities]
+
+        if "system" in entity_ids:
+            raise ValueError(
+                "External entity IDs cannot use the reserved ID 'system'"
+            )
+
+        if len(entity_ids) != len(set(entity_ids)):
+            raise ValueError("Duplicate external entity IDs detected")
+
+        flow_ids = [flow.id for flow in self.data_flows]
+
+        if len(flow_ids) != len(set(flow_ids)):
+            raise ValueError("Duplicate data flow IDs detected")
+
+        valid_ids = {"system", *entity_ids}
+
+        for flow in self.data_flows:
+            if flow.source not in valid_ids:
+                raise ValueError(
+                    f"Unknown source ID: {flow.source}"
+                )
+
+            if flow.target not in valid_ids:
+                raise ValueError(
+                    f"Unknown target ID: {flow.target}"
+                )
+
+            if flow.source == flow.target:
+                raise ValueError(
+                    "A data flow cannot connect an element to itself"
+                )
+
+            if "system" not in (flow.source, flow.target):
+                raise ValueError(
+                    "Every context data flow must connect to the system"
+                )
+
+        return self
+

@@ -1,3 +1,4 @@
+import json
 import logging
 
 from fastapi import FastAPI
@@ -7,6 +8,7 @@ from fastapi.responses import JSONResponse
 from schemas import (
     ClarificationAnswersInput,
     ClarificationResult,
+    ContextDiagramResult,
     ProjectInput,
     RequirementsGenerationInput,
     RequirementsResult,
@@ -18,6 +20,7 @@ from gemini_service import (
     generate_requirements,
     reanalyze_project,
     generate_srs,
+    generate_context_diagram,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -117,6 +120,26 @@ def generate_project_srs(data: SRSInput):
         )
 
 
+@app.post(
+    "/api/ai/diagrams/context/generate",
+    response_model=ContextDiagramResult,
+)
+def generate_project_context_diagram(data: dict):
+    try:
+        srs_content = json.dumps(data, ensure_ascii=False)
+
+        return generate_context_diagram(srs_content)
+
+    except Exception:
+        logger.exception("Context diagram generation failed")
+
+        return JSONResponse(
+            status_code=500,
+            content={
+                "code": "AI_GENERATION_FAILED",
+                "message": "Failed to generate context diagram.",
+            },
+        )
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request, exc):
