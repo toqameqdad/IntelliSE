@@ -13,6 +13,7 @@ from schemas import (
     RequirementsResult,
     SRSInput,
     SRSResult,
+    UseCaseDiagramResult,
 )
 
 load_dotenv()
@@ -675,3 +676,193 @@ def generate_context_diagram(srs_content: str) -> ContextDiagramResult:
         raise ValueError("Gemini returned an empty response")
 
     return ContextDiagramResult.model_validate_json(response.text)
+
+
+
+
+USE_CASE_DIAGRAM_PROMPT = """
+You are a professional software engineer specialized in
+UML Use Case Diagram generation.
+
+Your task is to generate a UML Use Case Diagram based
+strictly on the provided Software Requirements Specification (SRS).
+
+The SRS may describe any type of software system.
+You must analyze the actual content of the provided SRS
+and generate a diagram specific to that system.
+
+GENERAL RULES:
+
+- Use only information explicitly supported by the SRS.
+- Do not assume the project is IntelliSE or any other specific system.
+- Do not reuse actors, use cases, or functionality from previous examples.
+- Do not introduce predefined actors or use cases.
+- Understand the system's purpose, scope, users, and functionality
+  before generating the diagram.
+- Represent the system's functionality from the perspective
+  of the actors who interact with it.
+- Use clear, concise, verb-based use case names.
+- Each use case must represent a meaningful system function.
+- Do not represent internal technical processes as use cases.
+- Do not include implementation details.
+- Avoid duplicate or overlapping use cases.
+- Do not create a separate use case for every minor action.
+- Group closely related actions when appropriate.
+- Preserve meaningful distinctions between different actors and roles.
+
+ACTOR IDENTIFICATION:
+
+- Identify all human actors explicitly mentioned or clearly
+  supported by the SRS.
+- Identify external systems only when the SRS explicitly
+  describes their interaction with the system.
+- Give each actor a meaningful name and a short description.
+- Use actor_type "human" for human users.
+- Use actor_type "external_system" for external systems.
+- Do not invent actors based on assumptions.
+- Do not merge actors whose responsibilities or permissions
+  are different according to the SRS.
+
+USE CASE IDENTIFICATION:
+
+- Derive use cases from the functional requirements and
+  workflows described in the SRS.
+- Include the main functions that actors can perform.
+- Include account, management, or administrative functions
+  only when supported by the SRS.
+- Include interactions with external systems only when
+  explicitly supported.
+- Do not assume common features exist simply because they
+  are common in similar applications.
+- Do not create use cases for non-functional requirements
+  such as security, performance, or usability unless they
+  describe an actual actor-interaction function.
+- Do not add functionality that is not documented in the SRS.
+- Do not omit functional requirements simply because
+  they are optional or use words such as "may".
+- Represent optional functionality as a use case when
+  it describes a meaningful system capability.
+- Do not assign actors to use cases based on assumptions.
+  Actor associations must be supported by the SRS.
+- When the responsible actor is unclear, avoid inventing
+  an association.
+
+ACTOR ASSOCIATIONS:
+
+- Associate each use case with the actor or actors that
+  directly interact with it.
+- Respect the permissions, responsibilities, and access
+  restrictions defined in the SRS.
+- Do not associate actors with functions they are not
+  authorized to perform.
+- External systems should only be associated with use cases
+  they directly interact with.
+- Every use case must reference at least one valid actor ID.
+- Do not associate an actor merely because it is indirectly
+  involved in a process.
+
+ACTOR ASSOCIATIONS:
+
+- Associate each use case with actors who directly interact
+  with that functionality.
+- Do not associate actors with internal system operations
+  that they do not directly interact with.
+- A use case included by another use case may have no
+  direct actor association.
+- Do not invent actor associations to satisfy a minimum
+  number of actors.
+- Respect the permissions and responsibilities defined
+  in the SRS.
+- External systems should only be associated with use cases
+  they directly interact with.
+- Use an empty actorIds list when a use case represents
+  an internal system operation with no direct actor.
+
+
+INCLUDE AND EXTEND RELATIONSHIPS:
+
+- Use "include" only when one use case necessarily invokes
+  another use case as part of its behavior.
+- Use "extend" only when optional or conditional behavior
+  extends another use case.
+- Do not infer relationships from workflow order alone.
+- Do not create relationships just to make the diagram
+  more detailed.
+- If no relationship is clearly justified by the SRS,
+  return an empty relationships list.
+- Both source and target must reference existing use case IDs.
+- A use case cannot have a relationship with itself.
+- When a use case requires another use case to execute
+  as part of its behavior, use "include".
+- The source must be the base use case that includes
+  the target use case.
+- When optional behavior extends a base use case,
+  use "extend".
+- The source must be the extending use case, and the
+  target must be the base use case.
+- Do not use "include" for behavior that is only
+  a precondition.
+
+
+SYSTEM BOUNDARY:
+
+- Use the system name specified in the SRS.
+- If the system name is not explicitly provided, infer it
+  only when it can be identified clearly from the document.
+- Actors represent entities outside the system boundary.
+- Use cases represent functions provided inside the
+  system boundary.
+- Do not represent actors as use cases.
+
+VALIDATION AND ACCURACY:
+
+- Do not invent missing requirements or fill gaps with
+  assumptions.
+- If information is insufficient to identify a specific
+  actor or use case, omit it.
+- Return unique IDs for all actors and use cases.
+- Use stable, readable IDs within the generated diagram.
+- Ensure every actor ID referenced by a use case exists
+  in the actors list.
+- Empty actorIds lists are allowed for internal system
+  operations.
+- Ensure every relationship references existing use case IDs.
+- Ensure the generated diagram accurately reflects the
+  provided SRS, not a generic application template.
+
+LATEST APPROVED SRS:
+
+{srs_content}
+
+Return only valid JSON matching the provided schema.
+"""
+
+
+def generate_use_case_diagram(
+    srs_content: str,
+) -> UseCaseDiagramResult:
+
+    if not srs_content.strip():
+        raise ValueError("SRS content cannot be empty")
+
+    prompt = USE_CASE_DIAGRAM_PROMPT.format(
+        srs_content=srs_content
+    )
+
+    response = client.models.generate_content(
+        model=MODEL_NAME,
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            response_schema=clean_schema(
+                UseCaseDiagramResult.model_json_schema(by_alias=True)
+            ),
+            temperature=0.2,
+            max_output_tokens=5000,
+        ),
+    )
+
+    if not response.text:
+        raise ValueError("Gemini returned an empty response")
+
+    return UseCaseDiagramResult.model_validate_json(response.text)

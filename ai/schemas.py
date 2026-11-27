@@ -230,3 +230,67 @@ class ContextDiagramResult(BaseSchema):
 
         return self
 
+
+
+class UseCaseDiagramActor(BaseSchema):
+    id: str = Field(min_length=1)
+    name: str = Field(min_length=1)
+    description: str = Field(min_length=1)
+    actor_type: Literal["human", "external_system"]
+
+
+class UseCaseDiagramItem(BaseSchema):
+    id: str = Field(min_length=1)
+    name: str = Field(min_length=1)
+    description: str = Field(min_length=1)
+    actor_ids: list[str] = Field(default_factory=list)
+
+
+class UseCaseRelationship(BaseSchema):
+    source: str = Field(min_length=1)
+    target: str = Field(min_length=1)
+    relationship_type: Literal["include", "extend"]
+
+
+class UseCaseDiagramResult(BaseSchema):
+    diagram_type: Literal["use_case"] = "use_case"
+    system_name: str = Field(min_length=1)
+    actors: list[UseCaseDiagramActor] = Field(min_length=1)
+    use_cases: list[UseCaseDiagramItem] = Field(min_length=1)
+    relationships: list[UseCaseRelationship] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_diagram(self):
+        actor_ids = [actor.id for actor in self.actors]
+        use_case_ids = [use_case.id for use_case in self.use_cases]
+
+        if len(actor_ids) != len(set(actor_ids)):
+            raise ValueError("Actor IDs must be unique")
+
+        if len(use_case_ids) != len(set(use_case_ids)):
+            raise ValueError("Use case IDs must be unique")
+
+        valid_actor_ids = set(actor_ids)
+        valid_use_case_ids = set(use_case_ids)
+
+        for use_case in self.use_cases:
+            if not set(use_case.actor_ids).issubset(valid_actor_ids):
+                raise ValueError(
+                    f"Use case '{use_case.id}' references an unknown actor"
+                )
+
+        for relationship in self.relationships:
+            if (
+                relationship.source not in valid_use_case_ids
+                or relationship.target not in valid_use_case_ids
+            ):
+                raise ValueError(
+                    "Relationship references an unknown use case"
+                )
+
+            if relationship.source == relationship.target:
+                raise ValueError(
+                    "A use case cannot have a relationship with itself"
+                )
+
+        return self

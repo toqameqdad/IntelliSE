@@ -14,6 +14,7 @@ from schemas import (
     RequirementsResult,
 	SRSInput,
 	SRSResult,
+	UseCaseDiagramResult,
 )
 from gemini_service import (
     analyze_project,
@@ -21,6 +22,7 @@ from gemini_service import (
     reanalyze_project,
     generate_srs,
     generate_context_diagram,
+	generate_use_case_diagram,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -140,6 +142,29 @@ def generate_project_context_diagram(data: dict):
                 "message": "Failed to generate context diagram.",
             },
         )
+
+
+@app.post(
+    "/api/ai/diagrams/use-case/generate",
+    response_model=UseCaseDiagramResult,
+)
+def generate_project_use_case_diagram(data: dict):
+    try:
+        srs_content = json.dumps(data, ensure_ascii=False)
+
+        return generate_use_case_diagram(srs_content)
+
+    except Exception:
+        logger.exception("Use case diagram generation failed")
+
+        return JSONResponse(
+            status_code=500,
+            content={
+                "code": "AI_GENERATION_FAILED",
+                "message": "Failed to generate use case diagram.",
+            },
+        )
+
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request, exc):
