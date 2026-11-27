@@ -1,4 +1,5 @@
 import os
+import json
 
 from dotenv import load_dotenv
 from google import genai
@@ -14,6 +15,7 @@ from schemas import (
     SRSInput,
     SRSResult,
     UseCaseDiagramResult,
+    ActivityDiagramResult,
 )
 
 load_dotenv()
@@ -866,3 +868,476 @@ def generate_use_case_diagram(
         raise ValueError("Gemini returned an empty response")
 
     return UseCaseDiagramResult.model_validate_json(response.text)
+
+
+ACTIVITY_DIAGRAM_PROMPT = """
+You are a professional Software Engineer specialized in UML
+Activity Diagrams.
+
+Your task is to analyze the provided Software Requirements
+Specification (SRS) and generate a UML Activity Diagram
+representing the main workflow of the system.
+
+SRS:
+{srs_content}
+
+GENERAL INSTRUCTIONS:
+
+1. Understand the system and identify its main end-to-end workflow.
+2. Generate one coherent Activity Diagram representing the
+   most important workflow described in the SRS.
+3. Base every activity, decision, and transition strictly on
+   information supported by the SRS.
+4. Do not invent features, actions, business rules, or system
+   behavior that are not described in the SRS.
+5. Do not convert every functional requirement into a separate
+   activity node. Focus on the actual sequence of actions.
+6. Use clear and concise English names and descriptions.
+7. Do not assume that all system features belong to
+   one sequential workflow.
+8. Focus on one coherent end-to-end workflow.
+   Do not combine independent user activities
+   merely because they belong to the same system.
+9. Do not assume that activities must occur in a
+   specific order unless the SRS explicitly supports
+   that sequence.
+10. Separate distinct actions when the SRS describes
+    them as separate operations, especially when
+    they have different outcomes.
+11. Ensure that every decision branch represents
+    the correct logical outcome of its condition.
+    The target of each branch must be consistent
+    with the meaning of the condition and the
+    subsequent workflow.
+12. Keep the activity diagram focused on one clearly
+    defined business workflow. Include only activities
+    that directly belong to that workflow.
+    Do not combine separate workflows unless the SRS
+    explicitly defines them as part of the same process.
+
+
+WORKFLOW SELECTION AND COMPLETENESS:
+
+1. Identify the main workflow based on the functional
+   requirements and the relationships between them.
+
+2. Include an activity in the selected workflow when
+   it is explicitly required as part of that workflow
+   or when the SRS establishes a dependency between it
+   and another activity in the workflow.
+
+3. Do not include independent system features merely
+   because they are important or commonly used.
+
+4. Do not assume that an activity is a prerequisite
+   for another activity unless the SRS explicitly
+   establishes that dependency.
+
+5. If an included activity has required validations,
+   decisions, or outcomes described in the SRS,
+   represent them accurately.
+
+6. Ensure that the selected workflow is complete
+   enough to represent its supported start-to-end
+   behavior without omitting explicitly required steps.
+
+7. Do not force unrelated functional requirements
+   into the selected workflow just to represent
+   more system features.
+
+
+NODE RULES:
+
+1. Every node must have:
+   - id: unique identifier.
+   - name: short descriptive name.
+   - description: explanation of the node.
+   - nodeType: one of the allowed node types.
+   - partition: responsible actor or system, if identified
+     in the SRS; otherwise null.
+
+2. Use only these node types:
+   - initial: starting point of the workflow.
+   - action: an activity or operation.
+   - decision: a point where the workflow branches based on
+     a condition.
+   - merge: a point where alternative paths come together.
+   - fork: a point where parallel activities begin.
+   - join: a point where parallel activities synchronize.
+   - activity_final: end of the entire workflow.
+
+3. The diagram must contain exactly one initial node and
+   at least one activity_final node.
+
+4. Action names should describe activities using verbs.
+
+5. Decision nodes should describe a question or condition.
+
+FLOW RULES:
+
+1. Every flow must connect two existing node IDs.
+2. Use source and target to define the direction of each flow.
+3. Use condition to describe the condition of a transition.
+4. Every decision node must have at least two outgoing flows.
+5. Every outgoing flow from a decision node must have a
+   meaningful condition, such as "Yes" or "No".
+6. Use merge nodes when alternative paths come together.
+7. Use fork and join nodes only when the SRS explicitly
+   describes parallel activities.
+8. Represent loops only when repetition is supported by
+   the SRS.
+9. Do not create unnecessary nodes or transitions.
+
+WORKFLOW ORDER AND REQUIREMENT CONSISTENCY:
+
+1. Respect all explicit ordering constraints stated in the SRS.
+2. If the SRS requires a condition or validation to be
+   checked before an action is allowed, place that
+   validation before the action.
+3. Do not represent an action as completed before
+   its required validations or conditions are satisfied.
+4. Distinguish between initiating an operation and
+   successfully completing it when the SRS makes
+   this distinction.
+5. Before generating the final JSON, verify that the
+   sequence of nodes and flows does not contradict
+   any explicit workflow constraints in the SRS.
+
+PARTITIONS:
+
+Use partition to identify the responsible actor or system
+for an action when this information is available in the SRS.
+Do not invent actors or responsibilities.
+
+
+PARTITION AND SEMANTIC ACCURACY RULES:
+
+1. Each action node must be assigned to the partition
+   of the actual actor or system component responsible
+   for performing that action.
+
+2. Do not assign an action to an external system if
+   the action description actually describes an action
+   performed by the main system, and vice versa.
+
+3. When the SRS describes interaction with an external
+   system, represent the responsibility accurately.
+   For example, distinguish between sending a request
+   by the main system and processing that request
+   by the external system when both actions are relevant.
+
+4. Use neutral and accurate names for final nodes.
+   Do not assume that an order is cancelled, rejected,
+   or deleted unless this behavior is explicitly
+   supported by the SRS.
+
+5. Do not introduce business outcomes or state changes
+   that are not explicitly supported by the SRS.
+
+6. Ensure that node names, descriptions, partitions,
+   and flow conditions are consistent with each other.
+
+7. When an activity involves an actor making a choice
+   followed by the system performing an operation,
+   represent these as separate actions when both
+   responsibilities are described in the SRS.
+
+8. Do not assign system operations to users merely
+   because they initiate or request them.
+
+9. Represent user decisions explicitly when the SRS
+   states that an action depends on the user's choice.
+
+OUTPUT REQUIREMENTS:
+
+Return only valid JSON matching the provided response schema.
+
+Use camelCase property names:
+- diagramType
+- systemName
+- activityName
+- nodes
+- flows
+- nodeType
+- partition
+- source
+- target
+- condition
+
+
+WORKFLOW AND LOOP VALIDATION RULES:
+
+1. Do not create retry loops, repeated actions, or
+   alternative recovery workflows unless the SRS
+   explicitly describes them.
+
+2. Do not assume that users can retry, modify, or
+   restart an operation after failure unless this
+   behavior is specified in the SRS.
+
+3. Every decision branch must represent an outcome
+   supported by the SRS. Do not invent actions or
+   transitions to handle unspecified outcomes.
+
+4. When an operation fails, represent only the
+   failure handling behavior explicitly described
+   in the SRS. Do not automatically retry the
+   operation or return to a previous action.
+
+5. If an action is included in the workflow and
+   has multiple possible outcomes described in
+   the SRS, represent those outcomes accurately.
+
+6. Do not include an action in the workflow unless
+   its position and relationship with the other
+   actions are supported by the SRS.
+
+
+The diagramType must be "activity".
+
+Do not include Markdown, explanations, comments, or text
+outside the JSON response.
+"""
+
+
+
+
+def generate_activity_diagram(
+    srs_content: str,
+) -> ActivityDiagramResult:
+
+    if not srs_content.strip():
+        raise ValueError("SRS content cannot be empty")
+
+    schema = clean_schema(
+        ActivityDiagramResult.model_json_schema(by_alias=True)
+    )
+
+    # Step 1: Generate the initial activity diagram
+    prompt = ACTIVITY_DIAGRAM_PROMPT.format(
+        srs_content=srs_content
+    )
+
+    response = client.models.generate_content(
+        model=MODEL_NAME,
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            response_schema=schema,
+            temperature=0.2,
+            max_output_tokens=5000,
+        ),
+    )
+
+    if not response.text:
+        raise ValueError(
+            "Gemini returned an empty activity diagram"
+        )
+    
+    initial_result = ActivityDiagramResult.model_validate_json(
+        response.text
+    )
+
+    # Step 2: Review and correct the generated diagram
+    diagram_content = json.dumps(
+        initial_result.model_dump(by_alias=True),
+        ensure_ascii=False,
+        indent=2,
+    )
+
+    review_prompt = ACTIVITY_DIAGRAM_REVIEW_PROMPT.format(
+        srs_content=srs_content,
+        diagram_content=diagram_content,
+    )
+
+    review_response = client.models.generate_content(
+        model=MODEL_NAME,
+        contents=review_prompt,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            response_schema=schema,
+            temperature=0.1,
+            max_output_tokens=5000,
+        ),
+    )
+
+    if not review_response.text:
+        raise ValueError(
+            "Gemini returned an empty reviewed activity diagram"
+        )
+
+    # Step 3: Validate the reviewed diagram
+    return ActivityDiagramResult.model_validate_json(
+        review_response.text
+    )
+
+
+ACTIVITY_DIAGRAM_REVIEW_PROMPT = """
+You are a Senior Software Engineer specialized in
+UML Activity Diagram validation.
+
+Your task is to review and correct an AI-generated
+Activity Diagram by comparing it against the original SRS.
+
+SRS:
+{srs_content}
+
+GENERATED ACTIVITY DIAGRAM:
+{diagram_content}
+
+VALIDATION RULES:
+
+1. Verify that every activity and transition is supported
+   by the SRS.
+
+2. Verify that actor actions and system operations are
+   assigned to the correct partitions.
+
+3. When the SRS describes a user choice that determines
+   whether an operation is performed, ensure that this
+   choice is represented by a decision node.
+
+4. Do not represent an optional user action as an
+   automatic system operation.
+
+5. Distinguish between an actor requesting an operation
+   and the system executing that operation.
+
+6. Verify that all required conditions and validations
+   are represented in the correct order.
+
+7. Verify that decision branches represent all relevant
+   outcomes explicitly supported by the SRS.
+
+8. Do not invent missing actions, decisions, business
+   rules, recovery behavior, or transitions.
+
+9. Do not add independent workflows that are unrelated
+   to the selected workflow.
+
+10. Preserve the original workflow scope when it is
+    consistent with the SRS.
+
+11. Correct only issues that can be justified by the SRS.
+
+12. Preserve valid nodes and flows. Do not unnecessarily
+    restructure a correct diagram.
+
+13. Ensure that all node IDs are unique and all flow
+    references point to existing nodes.
+
+14. Ensure that the corrected diagram satisfies the
+    Activity Diagram response schema.
+
+
+15. OPTIONAL USER ACTIONS:
+
+When the SRS states that a user may choose
+whether to perform an action, the diagram must
+represent that choice explicitly using a decision node.
+
+The decision must have separate Yes and No branches.
+
+The system operation must only happen on the
+branch where the user agrees to perform the action.
+
+Do not connect a negative system validation result
+directly to an optional action without representing
+the user's choice first.
+
+16. EXTERNAL SERVICES AND PARTITIONS:
+
+When the system sends a request or notification
+through an external service, assign the sending
+action to the System partition.
+
+Do not assign system-initiated operations to
+the external service partition.
+
+Use an external service partition only when the
+service itself performs an explicitly described
+activity.
+
+17. INITIAL NODE:
+
+The initial node must have a null partition.
+
+
+OUTPUT REQUIREMENTS:
+
+Return only the corrected diagram as valid JSON.
+
+Use the same response schema and camelCase property names.
+
+Do not include explanations, comments, Markdown,
+or text outside the JSON response.
+
+If the original diagram is already correct,
+return it without unnecessary changes.
+
+If the SRS states that the user can choose to join
+a waiting list, the corrected diagram must contain:
+
+1. A decision node representing the student's choice.
+2. A Yes branch leading to a System action that adds
+   the student to the waiting list.
+3. A No branch leading to the workflow end.
+
+A description saying "when requested" is not a
+substitute for explicitly representing the decision
+and its two outgoing flows.
+
+18. SEPARATE ACTIVITIES AND EXTERNAL SYSTEM INTERACTIONS:
+
+When the SRS describes multiple distinct activities
+performed sequentially, represent them as separate
+action nodes instead of combining them into one node.
+
+When an external system performs an operation and
+returns a result, represent the external system's
+operation as a separate action node using its own
+partition.
+
+The system's request and the external system's
+processing must not be represented as the same action.
+
+When the system performs two distinct operations,
+such as confirming an order and sending a notification,
+represent them as separate action nodes if both are
+explicitly described in the SRS.
+
+Preserve the correct execution order and do not invent
+additional activities.
+
+
+19. PARALLEL ACTIVITIES:
+
+Analyze activities that occur after the same preceding
+activity to determine whether they are sequential or
+independent.
+
+If the SRS describes two or more independent activities
+that occur after the same preceding activity, and does
+not establish a dependency or execution order between
+them, represent them as parallel activities.
+
+In this case:
+- Add one fork node after the preceding activity.
+- Connect the fork node to each independent activity.
+- Add a join node after the parallel activities if all
+  branches must complete before the workflow ends
+  or continues.
+- Connect each parallel activity to the join node.
+- Connect the join node to the next activity or final node.
+
+Do not connect independent activities sequentially
+unless the SRS explicitly establishes that order.
+
+Do not assume activities are parallel if the SRS
+establishes a dependency between them.
+
+Do not invent parallel activities that are not supported
+by the SRS.
+
+
+"""

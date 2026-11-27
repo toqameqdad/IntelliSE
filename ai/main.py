@@ -15,6 +15,7 @@ from schemas import (
 	SRSInput,
 	SRSResult,
 	UseCaseDiagramResult,
+	ActivityDiagramResult,
 )
 from gemini_service import (
     analyze_project,
@@ -23,6 +24,7 @@ from gemini_service import (
     generate_srs,
     generate_context_diagram,
 	generate_use_case_diagram,
+	generate_activity_diagram,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -162,6 +164,34 @@ def generate_project_use_case_diagram(data: dict):
             content={
                 "code": "AI_GENERATION_FAILED",
                 "message": "Failed to generate use case diagram.",
+            },
+        )
+
+
+
+@app.post(
+    "/generate-activity-diagram",
+    response_model=ActivityDiagramResult,
+)
+def generate_activity_diagram_endpoint(data: dict):
+
+    try:
+        srs_content = json.dumps(
+            data,
+            ensure_ascii=False,
+        )
+
+        result = generate_activity_diagram(srs_content)
+
+        return result
+
+    except Exception as e:
+        logger.exception("Activity diagram generation failed")
+
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": str(e),
             },
         )
 

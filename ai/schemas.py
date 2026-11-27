@@ -294,3 +294,330 @@ class UseCaseDiagramResult(BaseSchema):
                 )
 
         return self
+
+
+
+class ActivityDiagramNode(BaseSchema):
+    id: str = Field(min_length=1)
+    name: str = Field(min_length=1)
+    description: str = Field(min_length=1)
+    node_type: Literal[
+        "initial",
+        "action",
+        "decision",
+        "merge",
+        "fork",
+        "join",
+        "activity_final",
+    ]
+    partition: str | None = None
+
+
+class ActivityDiagramFlow(BaseSchema):
+    source: str = Field(min_length=1)
+    target: str = Field(min_length=1)
+    condition: str | None = None
+
+
+class ActivityDiagramResult(BaseSchema):
+    diagram_type: Literal["activity"] = "activity"
+    system_name: str = Field(min_length=1)
+    activity_name: str = Field(min_length=1)
+    nodes: list[ActivityDiagramNode] = Field(min_length=2)
+    flows: list[ActivityDiagramFlow] = Field(min_length=1)
+
+    
+    @model_validator(mode="after")
+    def validate_diagram(self):
+        node_ids = [node.id for node in self.nodes]
+
+        if len(node_ids) != len(set(node_ids)):
+            raise ValueError("Node IDs must be unique")
+
+        valid_node_ids = set(node_ids)
+
+        for flow in self.flows:
+            if (
+                flow.source not in valid_node_ids
+                or flow.target not in valid_node_ids
+            ):
+                raise ValueError("Flow references an unknown node")
+
+            if flow.source == flow.target:
+                raise ValueError("A node cannot have a flow to itself")
+
+        initial_nodes = [
+            node for node in self.nodes
+            if node.node_type == "initial"
+        ]
+
+        final_nodes = [
+            node for node in self.nodes
+            if node.node_type == "activity_final"
+        ]
+
+        if len(initial_nodes) != 1:
+            raise ValueError(
+                "Activity diagram must have exactly one initial node"
+            )
+
+        if not final_nodes:
+            raise ValueError(
+                "Activity diagram must have at least one final node"
+            )
+
+        for node in self.nodes:
+            if node.node_type == "decision":
+                outgoing_flows = [
+                    flow for flow in self.flows
+                    if flow.source == node.id
+                ]
+
+                if len(outgoing_flows) < 2:
+                    raise ValueError(
+                        f"Decision node '{node.id}' must have "
+                        "at least two outgoing flows"
+                    )
+
+                if any(
+                    not flow.condition
+                    for flow in outgoing_flows
+                ):
+                    raise ValueError(
+                        f"All outgoing flows from decision "
+                        f"'{node.id}' must have conditions"
+                    )
+
+        # Validate Fork and Join nodes
+        for node in self.nodes:
+
+            incoming_flows = [
+                flow for flow in self.flows
+                if flow.target == node.id
+            ]
+
+            outgoing_flows = [
+                flow for flow in self.flows
+                if flow.source == node.id
+            ]
+
+            if node.node_type == "fork":
+
+                if len(incoming_flows) != 1:
+                    raise ValueError(
+                        f"Fork node '{node.id}' must have "
+                        "exactly one incoming flow"
+                    )
+
+                if len(outgoing_flows) < 2:
+                    raise ValueError(
+                        f"Fork node '{node.id}' must have "
+                        "at least two outgoing flows"
+                    )
+
+            if node.node_type == "join":
+
+                if len(incoming_flows) < 2:
+                    raise ValueError(
+                        f"Join node '{node.id}' must have "
+                        "at least two incoming flows"
+                    )
+
+                if len(outgoing_flows) != 1:
+                    raise ValueError(
+                        f"Join node '{node.id}' must have "
+                        "exactly one outgoing flow"
+                    )
+
+        # Validate Fork and Join relationships
+        adjacency = {node.id: [] for node in self.nodes}
+
+        for flow in self.flows:
+            adjacency[flow.source].append(flow.target)
+
+        join_ids = {
+            node.id for node in self.nodes
+            if node.node_type == "join"
+        }
+
+        def get_reachable_nodes(start_id: str) -> set[str]:
+            visited = set()
+            stack = [start_id]
+
+            while stack:
+                current = stack.pop()
+
+                if current in visited:
+                    continue
+
+                visited.add(current)
+                stack.extend(adjacency[current])
+
+            return visited
+
+        for node in self.nodes:
+            if node.node_type != "fork":
+                continue
+
+            outgoing_flows = [
+                flow for flow in self.flows
+                if flow.source == node.id
+            ]
+
+            branch_targets = {
+                flow.target for flow in outgoing_flows
+            }
+
+            if len(branch_targets) != len(outgoing_flows):
+                raise ValueError(
+                    f"Fork node '{node.id}' must have "
+                    "different targets for each branch"
+                )
+
+            reachable_sets = [
+                get_reachable_nodes(target)
+                for target in branch_targets
+            ]
+
+            common_reachable_nodes = set.intersection(
+                *reachable_sets
+            )
+
+            matching_joins = (
+                common_reachable_nodes & join_ids
+            )
+
+            
+            valid_joins = set()
+
+            for join_id in matching_joins:
+                all_branches_pass_through_join = True
+
+                for branch_target in branch_targets:
+                    visited = set()
+                    stack = [branch_target]
+
+                    while stack:
+                        current = stack.pop()
+
+                        if current == join_id or current in visited:
+                            continue
+
+                        visited.add(current)
+                        stack.extend(adjacency[current])
+
+                    if any(
+                        final.id in visited
+                        for final in final_nodes
+                    ):
+                        all_branches_pass_through_join = False
+                        break
+
+                if all_branches_pass_through_join:
+                    valid_joins.add(join_id)
+
+            if not valid_joins:
+                raise ValueError(
+                    f"Fork node '{node.id}' has branches "
+                    "that can reach an activity final "
+                    "without passing through a common join"
+                )
+
+
+        # Check that every node is reachable from the initial node.
+        adjacency = {
+            node.id: [] for node in self.nodes
+        }
+
+        for flow in self.flows:
+            adjacency[flow.source].append(flow.target)
+
+        visited = set()
+        stack = [initial_nodes[0].id]
+
+        while stack:
+            current_node = stack.pop()
+
+            if current_node in visited:
+                continue
+
+            visited.add(current_node)
+            stack.extend(adjacency[current_node])
+
+        unreachable_nodes = valid_node_ids - visited
+
+        if unreachable_nodes:
+            raise ValueError(
+                f"Unreachable nodes found: {sorted(unreachable_nodes)}"
+            )
+
+
+        # Check that every node can reach at least one final node.
+        reverse_adjacency = {
+            node.id: [] for node in self.nodes
+        }
+
+        for flow in self.flows:
+            reverse_adjacency[flow.target].append(flow.source)
+
+        nodes_reaching_final = set()
+        stack = [node.id for node in final_nodes]
+
+        while stack:
+            current_node = stack.pop()
+
+            if current_node in nodes_reaching_final:
+                continue
+
+            nodes_reaching_final.add(current_node)
+
+            stack.extend(
+                reverse_adjacency[current_node]
+            )
+
+        nodes_without_final_path = (
+            valid_node_ids - nodes_reaching_final
+        )
+
+        if nodes_without_final_path:
+            raise ValueError(
+                "Nodes cannot reach an activity final: "
+                f"{sorted(nodes_without_final_path)}"
+            )
+
+
+        # Check that every node can reach at least one activity final.
+        reverse_adjacency = {
+            node.id: [] for node in self.nodes
+        }
+
+        for flow in self.flows:
+            reverse_adjacency[flow.target].append(flow.source)
+
+        can_reach_final = set()
+        stack = [node.id for node in final_nodes]
+
+        while stack:
+            current_node = stack.pop()
+
+            if current_node in can_reach_final:
+                continue
+
+            can_reach_final.add(current_node)
+
+            stack.extend(
+                reverse_adjacency[current_node]
+            )
+
+        nodes_without_final_path = (
+            valid_node_ids - can_reach_final
+        )
+
+        if nodes_without_final_path:
+            raise ValueError(
+                "Nodes cannot reach an activity final: "
+                f"{sorted(nodes_without_final_path)}"
+            )
+
+
+        return self
