@@ -621,3 +621,67 @@ class ActivityDiagramResult(BaseSchema):
 
 
         return self
+
+
+
+class ObjectDiagramAttribute(BaseSchema):
+    name: str = Field(min_length=1)
+    value: str = Field(min_length=1)
+
+
+class ObjectDiagramObject(BaseSchema):
+    id: str = Field(min_length=1)
+    name: str = Field(min_length=1)
+    class_name: str = Field(min_length=1)
+    attributes: list[ObjectDiagramAttribute] = Field(
+        default_factory=list
+    )
+
+    @model_validator(mode="after")
+    def validate_attributes(self):
+        attribute_names = [
+            attribute.name.casefold()
+            for attribute in self.attributes
+        ]
+
+        if len(attribute_names) != len(set(attribute_names)):
+            raise ValueError(
+                f"Object '{self.id}' has duplicate attributes"
+            )
+
+        return self
+
+
+class ObjectDiagramLink(BaseSchema):
+    source: str = Field(min_length=1)
+    target: str = Field(min_length=1)
+    label: str = Field(min_length=1)
+
+
+class ObjectDiagramResult(BaseSchema):
+    diagram_type: Literal["object"] = "object"
+    system_name: str = Field(min_length=1)
+    objects: list[ObjectDiagramObject] = Field(min_length=1)
+    links: list[ObjectDiagramLink] = Field(
+        default_factory=list
+    )
+
+    @model_validator(mode="after")
+    def validate_diagram(self):
+        object_ids = [obj.id for obj in self.objects]
+
+        if len(object_ids) != len(set(object_ids)):
+            raise ValueError("Object IDs must be unique")
+
+        valid_ids = set(object_ids)
+
+        for link in self.links:
+            if (
+                link.source not in valid_ids
+                or link.target not in valid_ids
+            ):
+                raise ValueError(
+                    "Link references an unknown object"
+                )
+
+        return self

@@ -16,6 +16,7 @@ from schemas import (
     SRSResult,
     UseCaseDiagramResult,
     ActivityDiagramResult,
+    ObjectDiagramResult,
 )
 
 load_dotenv()
@@ -1341,3 +1342,421 @@ by the SRS.
 
 
 """
+
+
+
+OBJECT_DIAGRAM_PROMPT = """
+You are a Senior Software Engineer specialized in UML Object Diagrams.
+
+Your task is to generate a meaningful and accurate UML Object Diagram
+based strictly on the latest approved Software Requirements
+Specification (SRS).
+
+LATEST APPROVED SRS:
+{srs_content}
+
+========================================
+1. UNDERSTAND THE SYSTEM
+========================================
+
+1. Analyze the complete SRS before generating the diagram.
+2. Identify the system's main actors, domain entities,
+   business concepts, and external systems.
+3. Review all functional requirements to understand
+   the system's main workflow.
+4. Identify the important entities and relationships
+   involved in that workflow.
+
+========================================
+2. SELECT A COHERENT SYSTEM SNAPSHOT
+========================================
+
+1. An Object Diagram represents a specific snapshot
+   of the system at a particular point in time.
+
+2. Select one meaningful scenario that represents
+   an important part of the system's core functionality.
+
+3. Choose a consistent system state for that scenario.
+   Do not combine incompatible states from different
+   stages of the workflow.
+
+4. Select the objects needed to represent that scenario.
+
+5. Include the main actors and domain entities involved
+   in the selected scenario when they contribute
+   to understanding the system.
+
+6. Ensure that the selected objects collectively
+   represent the important parts of the chosen scenario.
+
+7. Do not generate an object for every entity or concept
+   mentioned in the SRS.
+
+8. Do not omit essential objects that are necessary
+   to understand the selected workflow.
+
+9. Avoid unnecessary, irrelevant, or redundant objects.
+
+========================================
+3. OBJECT IDENTIFICATION
+========================================
+
+1. Every object must represent a specific instance
+   of a class or relevant domain entity.
+
+2. Do not generate class definitions or Class Diagrams.
+
+3. Use meaningful instance names, such as customer1,
+   book1, or order1.
+
+4. The className must identify the type of the instance,
+   such as Customer, Book, or Order.
+
+5. Actors may be represented as object instances
+   when they participate in the selected scenario.
+
+6. Do not confuse an external service with a domain entity.
+   External services must not be represented as internal
+   business objects unless the SRS explicitly describes
+   them as relevant object instances.
+
+7. Do not represent actions, processes, or functional
+   requirements as objects.
+
+========================================
+4. ATTRIBUTE EXTRACTION
+========================================
+
+1. Identify meaningful attributes for each selected object
+   based on the SRS.
+
+2. Distinguish between attribute definitions and actual
+   attribute values.
+
+   The SRS may describe which attributes an entity has
+   without providing their actual values.
+
+   In such cases:
+   - Include the attribute only if the schema and diagram
+     design require it and its value can be established.
+   - Never generate example values, realistic sample data,
+     or values based on general knowledge.
+   - Do not use real book titles, author names, prices,
+     customer names, or other illustrative data unless
+     explicitly provided in the SRS.
+
+3. You may derive a state value when it follows directly
+   from an explicitly described requirement and the
+   selected snapshot.
+
+4. For example, if the selected snapshot represents
+   an appointment after successful confirmation,
+   its status may be "Confirmed".
+
+5. Do not invent personal information, names, dates,
+   prices, specialties, quantities, or arbitrary values.
+
+6. Do not use placeholder values such as:
+   "Book Title", "Book Author", "Sample Value",
+   "Unknown", or "Not Specified".
+
+7. Do not treat an available option as an actual
+   selected value.
+
+8. Do not include attributes whose values cannot
+   be established.
+
+9. Empty attribute lists are acceptable when the SRS
+   does not provide enough information.
+
+10. Prefer meaningful and supported attributes over
+    filling objects with invented data.
+
+ATTRIBUTE VALUE RULE:
+
+Do not generate sample object data.
+
+For each attribute:
+- Include a value only if the exact value appears in the SRS.
+- A value may be inferred only when it represents a state
+  explicitly established by the selected scenario.
+- Never generate example IDs, codes, names, numbers,
+  prices, or other realistic-looking values.
+- If the SRS provides only the attribute name, omit it.
+
+
+STRICT VALUE TRACEABILITY:
+
+Every attribute value must be traceable to an explicit
+statement in the SRS or a state directly established
+by the selected scenario.
+
+The existence of an attribute does not authorize
+generating its value.
+
+Before including any attribute value, verify its source
+in the SRS.
+
+If no supporting source exists, omit the attribute.
+
+Never use domain knowledge, common examples, assumptions,
+or realistic sample data to fill missing values.
+
+========================================
+5. RELATIONSHIP IDENTIFICATION
+========================================
+
+1. Identify relationships between the selected object
+   instances based on the SRS.
+
+2. Every link must represent a meaningful relationship
+   between its source and target objects.
+
+3. Derive links from explicit associations or relationships
+   described by the functional requirements.
+
+4. Use concise relationship labels such as:
+   owns, contains, places, belongsTo, or assignedTo,
+   when appropriate.
+
+5. Do not represent an interaction with an external
+   service as an internal object relationship.
+
+6. Do not create links merely because two concepts
+   appear in the same functional requirement.
+
+7. Do not create unsupported, duplicate, or unnecessary links.
+
+8. Every link source and target must reference an existing
+   object ID.
+
+========================================
+6. OBJECT DIAGRAM QUALITY
+========================================
+
+Before generating the output, verify that:
+
+1. The diagram represents one coherent system snapshot.
+2. The selected objects represent the main scenario.
+3. Every object is a valid instance, not a class definition.
+4. Object names and class names are meaningful.
+5. Attributes contain supported values only.
+6. Placeholder and invented values are absent.
+7. Links represent valid relationships between instances.
+8. External services are not confused with domain objects.
+9. The diagram is neither unnecessarily small nor unnecessarily
+   complex.
+10. The diagram accurately reflects the SRS.
+
+========================================
+7. OUTPUT REQUIREMENTS
+========================================
+
+- Use the exact system name specified in the SRS.
+- The diagramType must be "object".
+- Every object must have a unique diagram-local ID.
+- Every object must have a name and className.
+- Every attribute must have a name and a non-empty value.
+- Attribute names must not be duplicated within an object.
+- Every link must have a source, target, and label.
+- All link references must point to existing object IDs.
+- Follow the provided JSON response schema.
+- Use camelCase property names.
+
+Return only valid JSON matching the provided schema.
+Do not include Markdown, explanations, comments,
+or text outside the JSON.
+"""
+
+
+OBJECT_DIAGRAM_REVIEW_PROMPT = """
+You are a Senior Software Engineer specialized in UML
+Object Diagram validation.
+
+Your task is to review the generated Object Diagram
+against the latest approved SRS.
+
+LATEST APPROVED SRS:
+{srs_content}
+
+GENERATED OBJECT DIAGRAM:
+{diagram_content}
+
+========================================
+1. SNAPSHOT VALIDATION
+========================================
+
+1. Verify that the diagram represents one coherent
+   system snapshot.
+
+2. Verify that the objects belong to the same meaningful
+   scenario and do not combine incompatible system states.
+
+3. Verify that the diagram represents important parts
+   of the selected workflow.
+
+========================================
+2. OBJECT VALIDATION
+========================================
+
+1. Verify that every object represents an instance,
+   not a class definition, action, or process.
+
+2. Verify that each object has a meaningful name
+   and className.
+
+3. Verify that actors and domain entities are represented
+   appropriately.
+
+4. Verify that external services are not incorrectly
+   represented as internal domain objects.
+
+5. Preserve relevant objects that are supported by
+   the SRS and contribute to the selected scenario.
+
+6. Add a missing essential object only when its relevance
+   is clearly supported by the SRS.
+
+7. Remove objects only when they are irrelevant,
+   duplicated, or unsupported.
+
+========================================
+3. ATTRIBUTE VALIDATION
+========================================
+
+1. Verify that attribute names are meaningful.
+
+2. Verify that attribute values are supported by the SRS
+   or directly established by the selected snapshot.
+
+3. Remove invented, arbitrary, or placeholder values.
+
+4. Preserve valid derived state values when they follow
+   directly from the selected scenario.
+
+5. Do not remove an otherwise valid object merely because
+   its attributes list is empty.
+
+6. Do not invent attribute values to make the diagram
+   appear more complete.
+
+========================================
+4. LINK VALIDATION
+========================================
+
+1. Verify that every link represents a meaningful
+   relationship between object instances.
+
+2. Verify that source and target IDs exist.
+
+3. Remove unsupported, duplicate, or invalid links.
+
+4. Add a missing link only when the relationship
+   is clearly supported by the SRS.
+
+5. Use concise and meaningful relationship labels.
+
+6. Do not represent external service interactions
+   as internal object relationships.
+
+========================================
+5. FINAL VALIDATION
+========================================
+
+Verify that:
+
+- Object IDs are unique.
+- Object names are unique.
+- Every object has a valid className.
+- Attribute names are unique within each object.
+- Attribute values are non-empty and supported.
+- Every link references existing objects.
+- No placeholder values remain.
+- The diagram follows the response schema.
+- The diagram remains a UML Object Diagram.
+
+Preserve all correct parts of the original diagram.
+Do not unnecessarily restructure or simplify it.
+Do not add unsupported information.
+
+OUTPUT REQUIREMENTS:
+
+- Preserve the JSON structure.
+- Use camelCase property names.
+- The diagramType must be "object".
+- Return only valid JSON.
+- Do not include explanations, comments, or Markdown.
+
+If the original diagram is already correct,
+return it without unnecessary changes.
+"""
+
+
+def generate_object_diagram(
+    srs_content: str,
+) -> ObjectDiagramResult:
+
+    if not srs_content.strip():
+        raise ValueError("SRS content cannot be empty")
+
+    schema = clean_schema(
+        ObjectDiagramResult.model_json_schema(by_alias=True)
+    )
+
+    # Step 1: Generate the initial object diagram
+    prompt = OBJECT_DIAGRAM_PROMPT.format(
+        srs_content=srs_content
+    )
+
+    response = client.models.generate_content(
+        model=MODEL_NAME,
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            response_schema=schema,
+            temperature=0.2,
+            max_output_tokens=5000,
+        ),
+    )
+
+    if not response.text:
+        raise ValueError(
+            "Gemini returned an empty object diagram"
+        )
+
+    initial_result = ObjectDiagramResult.model_validate_json(
+        response.text
+    )
+
+    # Step 2: Review and correct the generated diagram
+    diagram_content = json.dumps(
+        initial_result.model_dump(by_alias=True),
+        ensure_ascii=False,
+        indent=2,
+    )
+
+    review_prompt = OBJECT_DIAGRAM_REVIEW_PROMPT.format(
+        srs_content=srs_content,
+        diagram_content=diagram_content,
+    )
+
+    review_response = client.models.generate_content(
+        model=MODEL_NAME,
+        contents=review_prompt,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            response_schema=schema,
+            temperature=0.1,
+            max_output_tokens=5000,
+        ),
+    )
+
+    if not review_response.text:
+        raise ValueError(
+            "Gemini returned an empty reviewed object diagram"
+        )
+
+    return ObjectDiagramResult.model_validate_json(
+        review_response.text
+    )

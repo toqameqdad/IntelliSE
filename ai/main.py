@@ -16,6 +16,7 @@ from schemas import (
 	SRSResult,
 	UseCaseDiagramResult,
 	ActivityDiagramResult,
+	ObjectDiagramResult,
 )
 from gemini_service import (
     analyze_project,
@@ -25,6 +26,7 @@ from gemini_service import (
     generate_context_diagram,
 	generate_use_case_diagram,
 	generate_activity_diagram,
+	generate_object_diagram,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -187,6 +189,34 @@ def generate_activity_diagram_endpoint(data: dict):
 
     except Exception as e:
         logger.exception("Activity diagram generation failed")
+
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": str(e),
+            },
+        )
+
+
+
+@app.post(
+    "/generate-object-diagram",
+    response_model=ObjectDiagramResult,
+)
+def generate_object_diagram_endpoint(data: dict):
+
+    try:
+        srs_content = json.dumps(
+            data,
+            ensure_ascii=False,
+        )
+
+        result = generate_object_diagram(srs_content)
+
+        return result
+
+    except Exception as e:
+        logger.exception("Object diagram generation failed")
 
         return JSONResponse(
             status_code=500,
