@@ -162,6 +162,47 @@ class SRSResult(BaseSchema):
 
 
 
+class MethodologyInput(BaseSchema):
+    project_name: str = Field(min_length=1)
+    srs: SRSResult
+
+
+class MethodologyRecommendationResult(BaseSchema):
+    recommended_methodology: Literal[
+        "Agile",
+        "Waterfall",
+        "Spiral",
+    ]
+    recommendation_reason: str = Field(min_length=1)
+
+
+class MethodologyCompatibilityInput(MethodologyInput):
+    recommended_methodology: Literal["Agile", "Waterfall", "Spiral"]
+    selected_methodology: str = Field(min_length=1, max_length=100)
+
+
+class MethodologyCompatibilityResult(BaseSchema):
+    compatibility_status: Literal[
+        "compatible",
+        "potentially_incompatible",
+    ]
+    compatibility_analysis: str = Field(min_length=1)
+    warning: str | None = None
+
+    @model_validator(mode="after")
+    def validate_compatibility(self):
+        if (
+            self.compatibility_status == "potentially_incompatible"
+            and not self.warning
+        ):
+            raise ValueError(
+                "A warning is required for potentially incompatible methodologies"
+            )
+
+        return self
+
+
+
 class ContextDiagramSystem(BaseSchema):
     id: Literal["system"] = "system"
     name: str = Field(min_length=1)

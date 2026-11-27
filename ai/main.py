@@ -12,11 +12,15 @@ from schemas import (
     ProjectInput,
     RequirementsGenerationInput,
     RequirementsResult,
-	SRSInput,
-	SRSResult,
-	UseCaseDiagramResult,
-	ActivityDiagramResult,
-	ObjectDiagramResult,
+    SRSInput,
+    SRSResult,
+    UseCaseDiagramResult,
+    ActivityDiagramResult,
+    ObjectDiagramResult,
+    MethodologyInput,
+    MethodologyRecommendationResult,
+    MethodologyCompatibilityInput,
+    MethodologyCompatibilityResult,
 )
 from gemini_service import (
     analyze_project,
@@ -24,9 +28,11 @@ from gemini_service import (
     reanalyze_project,
     generate_srs,
     generate_context_diagram,
-	generate_use_case_diagram,
-	generate_activity_diagram,
-	generate_object_diagram,
+    generate_use_case_diagram,
+    generate_activity_diagram,
+    generate_object_diagram,
+    recommend_methodology,
+    analyze_methodology_compatibility,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -122,6 +128,46 @@ def generate_project_srs(data: SRSInput):
             content={
                 "code": "AI_GENERATION_FAILED",
                 "message": "Failed to generate SRS.",
+            },
+        )
+
+
+@app.post(
+    "/api/ai/methodology/recommend",
+    response_model=MethodologyRecommendationResult,
+)
+def recommend_project_methodology(data: MethodologyInput):
+    try:
+        return recommend_methodology(data)
+
+    except Exception:
+        logger.exception("Methodology recommendation failed")
+        return JSONResponse(
+            status_code=500,
+            content={
+                "code": "AI_GENERATION_FAILED",
+                "message": "Failed to recommend development methodology.",
+            },
+        )
+
+
+@app.post(
+    "/api/ai/methodology/compatibility",
+    response_model=MethodologyCompatibilityResult,
+)
+def analyze_project_methodology_compatibility(
+    data: MethodologyCompatibilityInput,
+):
+    try:
+        return analyze_methodology_compatibility(data)
+
+    except Exception:
+        logger.exception("Methodology compatibility analysis failed")
+        return JSONResponse(
+            status_code=500,
+            content={
+                "code": "AI_GENERATION_FAILED",
+                "message": "Failed to analyze methodology compatibility.",
             },
         )
 
@@ -233,5 +279,7 @@ async def validation_exception_handler(request, exc):
         content={
             "code": "INVALID_INPUT",
             "message": "Invalid project input.",
+            "details": exc.errors(),
         },
     )
+

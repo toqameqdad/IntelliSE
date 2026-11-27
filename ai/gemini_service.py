@@ -17,6 +17,10 @@ from schemas import (
     UseCaseDiagramResult,
     ActivityDiagramResult,
     ObjectDiagramResult,
+    MethodologyInput,
+    MethodologyRecommendationResult,
+    MethodologyCompatibilityInput,
+    MethodologyCompatibilityResult,
 )
 
 load_dotenv()
@@ -511,6 +515,176 @@ def generate_srs(data: SRSInput) -> SRSResult:
     return SRSResult.model_validate_json(response.text)
 
 
+
+def recommend_methodology(
+    data: MethodologyInput,
+) -> MethodologyRecommendationResult:
+
+    srs_content = data.srs.model_dump_json(
+        by_alias=True,
+        exclude_none=True,
+    )
+
+    prompt = f"""
+    You are a professional software development methodology expert.
+
+    Analyze the following software project:
+
+    Project Name:
+    {data.project_name}
+
+    Approved SRS:
+    {srs_content}
+
+    Your task is to recommend the most suitable development
+    methodology for this project.
+
+    Available methodologies:
+    - Agile
+    - Waterfall
+    - Spiral
+
+    Consider the following project characteristics:
+    - Clarity and stability of requirements.
+    - Likelihood of changing requirements.
+    - Project complexity.
+    - Technical and project risks.
+    - Need for iterative development and user feedback.
+    - Need for a structured and sequential development process.
+
+    Rules:
+    - Select exactly one methodology from the three available options.
+    - Base your recommendation on the provided SRS.
+    - Consider the actual project characteristics, not general preferences.
+    - Do not assume project characteristics that are not supported
+      by the SRS.
+    - Do not recommend a methodology simply because it is popular.
+    - Explain clearly why the selected methodology fits the project.
+    - Do not generate an SDLC plan or project timeline.
+    - Return only valid JSON matching the provided schema.
+    """
+
+    response = client.models.generate_content(
+        model=MODEL_NAME,
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            response_schema=clean_schema(
+                MethodologyRecommendationResult.model_json_schema(
+                    by_alias=True
+                )
+            ),
+            temperature=0.2,
+            max_output_tokens=1500,
+        ),
+    )
+
+    if not response.text:
+        raise ValueError("Gemini returned an empty response")
+
+    return MethodologyRecommendationResult.model_validate_json(
+        response.text
+    )
+
+
+
+def analyze_methodology_compatibility(
+    data: MethodologyCompatibilityInput,
+) -> MethodologyCompatibilityResult:
+
+    supported_methodologies = {"agile", "waterfall", "spiral"}
+
+    is_custom_methodology = (
+        data.selected_methodology.strip().casefold()
+        not in supported_methodologies
+    )
+
+    prompt = f"""
+    You are a professional software development methodology expert.
+
+    Analyze whether the user's selected development methodology
+    is suitable for the following project.
+
+    Project Name:
+    {data.project_name}
+
+    Approved SRS:
+    {data.srs.model_dump_json(by_alias=True, indent=2)}
+
+    Originally Recommended Methodology:
+    {data.recommended_methodology}
+
+    User Selected Methodology:
+    {data.selected_methodology}
+
+    Your task is to evaluate the compatibility of the selected
+    methodology with the project's characteristics.
+
+    Consider:
+    - Requirements clarity and stability.
+    - Expected changes during development.
+    - Project complexity.
+    - Technical and project risks.
+    - Need for iterative feedback.
+    - Suitability of the methodology's development approach.
+
+    Rules:
+    - Evaluate the selected methodology based on the project,
+      not merely because it differs from the recommendation.
+    - Do not automatically classify a different methodology
+      as incompatible.
+    - Use "compatible" when the selected methodology is suitable.
+    - Use "potentially_incompatible" when important project
+      characteristics conflict with the selected methodology.
+    - Explain the reasons behind your assessment.
+    - If potentially incompatible, provide a clear warning
+      explaining the concern.
+    - Do not invent project characteristics.
+    - Do not generate an SDLC plan or project timeline.
+    - Return only valid JSON matching the provided schema.
+    """
+
+    response = client.models.generate_content(
+        model=MODEL_NAME,
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            response_schema=clean_schema(
+                MethodologyCompatibilityResult.model_json_schema(
+                    by_alias=True
+                )
+            ),
+            temperature=0.2,
+            max_output_tokens=1500,
+        ),
+    )
+
+    if not response.text:
+        raise ValueError("Gemini returned an empty response")
+
+    result = MethodologyCompatibilityResult.model_validate_json(
+        response.text
+    )
+
+    if is_custom_methodology:
+        support_warning = (
+            "This methodology is not one of IntelliSE's built-in "
+            "options (Agile, Waterfall, Spiral), so it is not "
+            "fully supported by the system."
+        )
+
+        warning = result.warning
+
+        if warning:
+            warning = f"{warning.rstrip()} {support_warning}"
+        else:
+            warning = support_warning
+
+        result = result.model_copy(
+            update={"warning": warning}
+        )
+
+    return result
 
 
 CONTEXT_DIAGRAM_PROMPT = """
