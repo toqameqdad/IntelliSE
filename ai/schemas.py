@@ -672,8 +672,13 @@ class ObjectDiagramResult(BaseSchema):
 
         if len(object_ids) != len(set(object_ids)):
             raise ValueError("Object IDs must be unique")
-
+        
         valid_ids = set(object_ids)
+
+        object_names = [obj.name.casefold() for obj in self.objects]
+
+        if len(object_names) != len(set(object_names)):
+            raise ValueError("Object names must be unique")
 
         for link in self.links:
             if (
