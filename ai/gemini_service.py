@@ -2070,8 +2070,6 @@ def generate_sdlc_plan(data: SDLCPlanInput) -> SDLCPlanResult:
         for index, name in enumerate(expected_phases, start=1)
     )
 
-    default_weights = SDLC_PHASE_WEIGHTS[data.approved_methodology]
-
     prompt = f"""
     You are a professional software development planning expert.
 
@@ -2120,27 +2118,16 @@ def generate_sdlc_plan(data: SDLCPlanInput) -> SDLCPlanResult:
     - Return them in projectCharacteristics.
 
     PHASE IMPORTANCE WEIGHTS:
-    - You MUST return a non-empty JSON object named
-      phaseImportanceWeights.
-    - This object MUST contain exactly one key for
-      every required SDLC phase.
-    - Keys MUST match the exact phase names above.
-    - Every value MUST be a positive finite number.
-    - Determine weights based on the actual SRS and
-      projectCharacteristics.
-    - Give more weight to phases requiring greater
-      effort or attention for this specific project.
-    - Do not simply copy generic default weights.
-    - Do not use equal weights unless justified.
-
-    REQUIRED WEIGHT KEYS:
-    {json.dumps(expected_phases, indent=2)}
-
-    REFERENCE WEIGHTS:
-    {json.dumps(default_weights, indent=2)}
-
-    The reference weights are guidance only.
-    Adjust them based on the approved SRS.
+    - Return phaseWeights as a JSON array, NOT as a dictionary.
+    - Every array item must have phaseName and weight.
+    - phaseName must exactly match a required phase name.
+    - Include each required phase exactly once, in the same order.
+    - weight must be a positive finite number.
+    - Determine phase-specific weights from the approved SRS
+      and the extracted projectCharacteristics.
+    - Higher weights mean greater relative importance.
+    - Do not invent unsupported project features.
+    - Do not omit phaseWeights or return an empty list.
 
     Return only valid JSON matching the response schema.
     """
@@ -2204,28 +2191,35 @@ def generate_sdlc_plan(data: SDLCPlanInput) -> SDLCPlanResult:
             "SDLC phase durations do not match total duration"
         )
 
-    # Validate the AI-generated importance weights.
-    generated_weights = result.phase_importance_weights
+    # Validate structured AI-generated phase weights.
+    weight_names = [item.phase_name for item in result.phase_weights]
 
-    if set(generated_weights) != set(expected_phases):
+    if weight_names != expected_phases:
         raise ValueError(
-            "SDLC phase importance weights do not match "
+            "Generated SDLC weights do not match "
             "the required methodology phases"
         )
 
+    importance_weights = {
+        item.phase_name: item.weight
+        for item in result.phase_weights
+    }
+
     if any(
         not math.isfinite(weight) or weight <= 0
-        for weight in generated_weights.values()
+        for weight in importance_weights.values()
     ):
         raise ValueError(
-            "SDLC phase importance weights must be "
-            "positive finite numbers"
+            "SDLC phase weights must be positive finite numbers"
         )
 
-    return SDLCPlanResult.model_validate(
-        result.model_dump()
+    return SDLCPlanResult(
+        methodology=result.methodology,
+        total_duration_weeks=result.total_duration_weeks,
+        phases=result.phases,
+        project_characteristics=result.project_characteristics,
+        phase_importance_weights=importance_weights,
     )
-
 
 
 def redistribute_sdlc_duration(
