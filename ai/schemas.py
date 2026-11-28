@@ -173,6 +173,26 @@ class SRSResult(BaseSchema):
 
 
 
+def validate_srs_coverage(source: SRSInput, result: SRSResult) -> SRSResult:
+    """Check requirement counts and IDs; semantic fidelity needs separate review."""
+    expected_functional_ids = [
+        f"FR-{index:03d}"
+        for index in range(1, len(source.functional_requirements) + 1)
+    ]
+    expected_non_functional_ids = [
+        f"NFR-{index:03d}"
+        for index in range(1, len(source.non_functional_requirements) + 1)
+    ]
+
+    if [item.id for item in result.functional_requirements] != expected_functional_ids:
+        raise ValueError("SRS functional requirements are missing, extra, or out of order")
+
+    if [item.id for item in result.non_functional_requirements] != expected_non_functional_ids:
+        raise ValueError("SRS non-functional requirements are missing, extra, or out of order")
+
+    return result
+
+
 class MethodologyInput(BaseSchema):
     project_name: str = Field(min_length=1)
     srs: SRSResult
