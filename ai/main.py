@@ -3,6 +3,7 @@ import logging
 
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
+from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 
 from schemas import (
@@ -292,7 +293,7 @@ async def validation_exception_handler(request, exc):
         content={
             "code": "INVALID_INPUT",
             "message": "Invalid project input.",
-            "details": exc.errors(),
+            "details": jsonable_encoder(exc.errors()),
         },
     )
 
