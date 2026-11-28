@@ -218,8 +218,13 @@ def generate_project_use_case_diagram(data: dict):
 
 
 @app.post(
+    "/api/ai/diagrams/activity/generate",
+    response_model=ActivityDiagramResult,
+)
+@app.post(
     "/generate-activity-diagram",
     response_model=ActivityDiagramResult,
+    include_in_schema=False,
 )
 def generate_activity_diagram_endpoint(data: dict):
 
@@ -247,8 +252,13 @@ def generate_activity_diagram_endpoint(data: dict):
 
 
 @app.post(
+    "/api/ai/diagrams/object/generate",
+    response_model=ObjectDiagramResult,
+)
+@app.post(
     "/generate-object-diagram",
     response_model=ObjectDiagramResult,
+    include_in_schema=False,
 )
 def generate_object_diagram_endpoint(data: dict):
 
