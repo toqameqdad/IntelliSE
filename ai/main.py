@@ -233,13 +233,14 @@ def generate_activity_diagram_endpoint(data: dict):
 
         return result
 
-    except Exception as e:
+    except Exception:
         logger.exception("Activity diagram generation failed")
 
         return JSONResponse(
             status_code=500,
             content={
-                "error": str(e),
+                "code": "AI_GENERATION_FAILED",
+                "message": "Failed to generate activity diagram.",
             },
         )
 
@@ -261,13 +262,14 @@ def generate_object_diagram_endpoint(data: dict):
 
         return result
 
-    except Exception as e:
+    except Exception:
         logger.exception("Object diagram generation failed")
 
         return JSONResponse(
             status_code=500,
             content={
-                "error": str(e),
+                "code": "AI_GENERATION_FAILED",
+                "message": "Failed to generate object diagram.",
             },
         )
 
