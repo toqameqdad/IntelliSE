@@ -1,8 +1,9 @@
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import (
     BaseModel,
+    RootModel,
     ConfigDict,
     Field,
     model_validator,
@@ -17,6 +18,16 @@ class BaseSchema(BaseModel):
         extra="forbid",
         str_strip_whitespace=True,
     )
+
+
+class DiagramGenerationInput(RootModel[dict[str, Any]]):
+    """Accept an SRS JSON object without changing the existing request shape."""
+
+    @model_validator(mode="after")
+    def validate_input(self):
+        if not self.root:
+            raise ValueError("Diagram input cannot be empty")
+        return self
 
 
 class ProjectInput(BaseSchema):
