@@ -798,7 +798,7 @@ class SDLCPlanResult(BaseSchema):
 
 class SDLCPhaseWeight(BaseSchema):
     phase_name: str = Field(min_length=1)
-    weight: float = Field(gt=0)
+    weight: float
 
 
 class SDLCGeminiResponse(BaseSchema):
