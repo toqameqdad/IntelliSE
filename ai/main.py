@@ -25,6 +25,9 @@ from schemas import (
     MethodologyCompatibilityInput,
     MethodologyCompatibilityResult,
     DiagramGenerationInput,
+	SDLCPlanInput,
+	SDLCPlanResult,
+	SDLCDurationUpdateInput,
 )
 from gemini_service import (
     analyze_project,
@@ -37,6 +40,8 @@ from gemini_service import (
     generate_object_diagram,
     recommend_methodology,
     analyze_methodology_compatibility,
+	generate_sdlc_plan,
+	redistribute_sdlc_duration,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -134,6 +139,57 @@ def analyze_project_methodology_compatibility(
     except Exception as exc:
         logger.exception("Methodology compatibility analysis failed")
         return generation_error_response(exc, "Failed to analyze methodology compatibility.")
+
+
+
+@app.post(
+    "/api/ai/sdlc/generate",
+    response_model=SDLCPlanResult,
+)
+def generate_project_sdlc_plan(data: SDLCPlanInput):
+    try:
+        return generate_sdlc_plan(data)
+
+    except Exception as exc:
+        logger.exception("SDLC plan generation failed")
+        return generation_error_response(
+            exc,
+            "Failed to generate SDLC plan.",
+        )
+
+
+@app.post(
+    "/api/ai/sdlc/redistribute",
+    response_model=SDLCPlanResult,
+)
+def redistribute_project_sdlc_duration(
+    data: SDLCDurationUpdateInput,
+):
+    try:
+        return redistribute_sdlc_duration(
+            plan=data.plan,
+            phase_name=data.phase_name,
+            new_duration_weeks=data.new_duration_weeks,
+        )
+
+    except ValueError as exc:
+        logger.warning("Invalid SDLC duration update: %s", exc)
+
+        return JSONResponse(
+            status_code=400,
+            content={
+                "code": "INVALID_SDLC_DURATION",
+                "message": str(exc),
+            },
+        )
+
+    except Exception as exc:
+        logger.exception("SDLC duration redistribution failed")
+
+        return generation_error_response(
+            exc,
+            "Failed to redistribute SDLC durations.",
+        )
 
 
 @app.post(

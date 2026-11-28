@@ -23,6 +23,8 @@ def api(monkeypatch):
         "generate_object_diagram",
         "recommend_methodology",
         "analyze_methodology_compatibility",
+		"generate_sdlc_plan",
+		"redistribute_sdlc_duration",
     )
 
     def unavailable(*args, **kwargs):

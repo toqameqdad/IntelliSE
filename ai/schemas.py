@@ -762,3 +762,46 @@ class ObjectDiagramResult(BaseSchema):
                 )
 
         return self
+
+
+
+class SDLCPlanInput(BaseSchema):
+    project_name: str = Field(min_length=1)
+    srs: SRSResult
+    approved_methodology: Literal["Agile", "Waterfall", "Spiral"]
+    project_duration_weeks: int | None = Field(default=None, ge=1)
+
+
+class SDLCPhase(BaseSchema):
+    name: str = Field(min_length=1)
+    objectives: list[str] = Field(min_length=1)
+    activities: list[str] = Field(min_length=1)
+    deliverables: list[str] = Field(min_length=1)
+    estimated_duration_weeks: int = Field(ge=1)
+
+
+
+
+class SDLCPlanResult(BaseSchema):
+    methodology: Literal["Agile", "Waterfall", "Spiral"]
+    total_duration_weeks: int = Field(ge=1)
+    phases: list[SDLCPhase] = Field(min_length=1)
+
+    project_characteristics: list[str] = Field(
+        default_factory=list
+    )
+
+    phase_importance_weights: dict[str, float] = Field(
+        default_factory=dict
+    )
+
+
+class SDLCGeminiResponse(SDLCPlanResult):
+    phase_importance_weights: dict[str, float] = Field(
+        min_length=1
+    )
+
+class SDLCDurationUpdateInput(BaseSchema):
+    plan: SDLCPlanResult
+    phase_name: str = Field(min_length=1)
+    new_duration_weeks: int = Field(ge=1)

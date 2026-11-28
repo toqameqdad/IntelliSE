@@ -1,5 +1,7 @@
 import os
 import json
+import math
+import logging
 
 from dotenv import load_dotenv
 from google import genai
@@ -22,6 +24,9 @@ from schemas import (
     MethodologyRecommendationResult,
     MethodologyCompatibilityInput,
     MethodologyCompatibilityResult,
+    SDLCPlanInput,
+    SDLCPlanResult,
+    SDLCGeminiResponse,
 )
 
 load_dotenv()
@@ -35,6 +40,7 @@ client = genai.Client(api_key=api_key)
 
 MODEL_NAME = "gemini-3.5-flash-lite"
 
+logger = logging.getLogger(__name__)
 
 def generate_requirements(
     data: RequirementsGenerationInput,
@@ -1942,4 +1948,369 @@ def generate_object_diagram(
 
     return ObjectDiagramResult.model_validate_json(
         review_response.text
+    )
+
+
+
+SDLC_PHASES = {
+    "Waterfall": [
+        "Requirements Analysis",
+        "System Design",
+        "Implementation",
+        "Testing",
+        "Deployment",
+        "Maintenance",
+    ],
+    "Agile": [
+        "Project Initiation",
+        "Product Backlog",
+        "Sprint Planning",
+        "Iterative Development",
+        "Testing and Review",
+        "Release",
+    ],
+    "Spiral": [
+        "Planning",
+        "Risk Analysis",
+        "Engineering",
+        "Evaluation",
+    ],
+}
+
+
+
+SDLC_PHASE_WEIGHTS = {
+    "Waterfall": {
+        "Requirements Analysis": 1.2,
+        "System Design": 1.2,
+        "Implementation": 2.0,
+        "Testing": 1.6,
+        "Deployment": 0.8,
+        "Maintenance": 1.0,
+    },
+    "Agile": {
+        "Project Initiation": 0.8,
+        "Product Backlog": 1.2,
+        "Sprint Planning": 1.0,
+        "Iterative Development": 2.0,
+        "Testing and Review": 1.6,
+        "Release": 0.8,
+    },
+    "Spiral": {
+        "Planning": 1.0,
+        "Risk Analysis": 1.8,
+        "Engineering": 2.0,
+        "Evaluation": 1.2,
+    },
+}
+
+
+
+def get_sdlc_characteristic_weights(
+    plan: SDLCPlanResult,
+) -> dict[str, float]:
+    default_weights = SDLC_PHASE_WEIGHTS[plan.methodology]
+
+    project_weights = plan.phase_importance_weights
+
+    # Support older plans that do not have custom weights.
+    if not project_weights:
+        return default_weights.copy()
+
+    expected_phases = set(SDLC_PHASES[plan.methodology])
+
+    if set(project_weights) != expected_phases:
+        raise ValueError(
+            "Invalid project-specific SDLC phase weights"
+        )
+
+    if any(
+        not math.isfinite(weight) or weight <= 0
+        for weight in project_weights.values()
+    ):
+        raise ValueError(
+            "SDLC phase weights must be positive finite numbers"
+        )
+
+    return project_weights.copy()
+
+
+
+def generate_sdlc_plan(data: SDLCPlanInput) -> SDLCPlanResult:
+    srs_content = data.srs.model_dump_json(
+        by_alias=True,
+        exclude_none=True,
+    )
+
+    expected_phases = SDLC_PHASES[data.approved_methodology]
+
+    # Every phase must have at least one week.
+    if (
+        data.project_duration_weeks is not None
+        and data.project_duration_weeks < len(expected_phases)
+    ):
+        raise ValueError(
+            "Project duration must be at least "
+            f"{len(expected_phases)} weeks for "
+            f"{data.approved_methodology}"
+        )
+
+    duration_instruction = (
+        f"The total project duration must be "
+        f"{data.project_duration_weeks} weeks."
+        if data.project_duration_weeks is not None
+        else (
+            "Estimate a realistic total project duration "
+            "in weeks based on the project characteristics."
+        )
+    )
+
+    required_phases_text = "\n".join(
+        f"{index}. {name}"
+        for index, name in enumerate(expected_phases, start=1)
+    )
+
+    default_weights = SDLC_PHASE_WEIGHTS[data.approved_methodology]
+
+    prompt = f"""
+    You are a professional software development planning expert.
+
+    PROJECT NAME:
+    {data.project_name}
+
+    APPROVED SRS:
+    {srs_content}
+
+    APPROVED METHODOLOGY:
+    {data.approved_methodology}
+
+    REQUIRED SDLC PHASES IN EXACT ORDER:
+    {required_phases_text}
+
+    PROJECT DURATION:
+    {duration_instruction}
+
+    TASK:
+    Generate a Software Development Life Cycle (SDLC) plan
+    based on the approved SRS and methodology.
+
+    RULES:
+    - Use exactly the required SDLC phases.
+    - Preserve their names, spelling, capitalization,
+      and order exactly.
+    - Do not add, remove, rename, or reorder phases.
+    - Each phase must contain:
+      name, objectives, activities, deliverables,
+      and estimatedDurationWeeks.
+    - Objectives, activities, and deliverables must
+      be non-empty lists.
+    - All durations must be positive integers in weeks.
+    - The sum of phase durations must equal
+      totalDurationWeeks.
+    - If the user specified a duration, use it exactly.
+    - Otherwise, estimate a realistic duration.
+    - Base phase content on the approved SRS.
+    - Do not invent unsupported project features.
+
+    PROJECT CHARACTERISTICS:
+    - Extract relevant characteristics from the SRS.
+    - Consider complexity, security, integrations,
+      data requirements, and testing needs only when
+      supported by the SRS.
+    - Return them in projectCharacteristics.
+
+    PHASE IMPORTANCE WEIGHTS:
+    - You MUST return a non-empty JSON object named
+      phaseImportanceWeights.
+    - This object MUST contain exactly one key for
+      every required SDLC phase.
+    - Keys MUST match the exact phase names above.
+    - Every value MUST be a positive finite number.
+    - Determine weights based on the actual SRS and
+      projectCharacteristics.
+    - Give more weight to phases requiring greater
+      effort or attention for this specific project.
+    - Do not simply copy generic default weights.
+    - Do not use equal weights unless justified.
+
+    REQUIRED WEIGHT KEYS:
+    {json.dumps(expected_phases, indent=2)}
+
+    REFERENCE WEIGHTS:
+    {json.dumps(default_weights, indent=2)}
+
+    The reference weights are guidance only.
+    Adjust them based on the approved SRS.
+
+    Return only valid JSON matching the response schema.
+    """
+
+    response = client.models.generate_content(
+        model=MODEL_NAME,
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            response_schema=clean_schema(
+                SDLCGeminiResponse.model_json_schema(
+                    by_alias=True
+                )
+            ),
+            temperature=0.2,
+            max_output_tokens=4000,
+        ),
+    )
+
+    if not response.text:
+        raise ValueError("Gemini returned an empty response")
+
+    result = SDLCGeminiResponse.model_validate_json(
+        response.text
+    )
+
+    if result.methodology != data.approved_methodology:
+        raise ValueError(
+            "Generated methodology does not match "
+            "approved methodology"
+        )
+
+    if data.project_duration_weeks is not None:
+        if (
+            result.total_duration_weeks
+            != data.project_duration_weeks
+        ):
+            raise ValueError(
+                "Generated project duration does not match "
+                "requested duration"
+            )
+
+    actual_phases = [
+        phase.name
+        for phase in result.phases
+    ]
+
+    if actual_phases != expected_phases:
+        raise ValueError(
+            "Generated SDLC phases do not match "
+            "the required methodology structure"
+        )
+
+    actual_total = sum(
+        phase.estimated_duration_weeks
+        for phase in result.phases
+    )
+
+    if actual_total != result.total_duration_weeks:
+        raise ValueError(
+            "SDLC phase durations do not match total duration"
+        )
+
+    # Validate the AI-generated importance weights.
+    generated_weights = result.phase_importance_weights
+
+    if set(generated_weights) != set(expected_phases):
+        raise ValueError(
+            "SDLC phase importance weights do not match "
+            "the required methodology phases"
+        )
+
+    if any(
+        not math.isfinite(weight) or weight <= 0
+        for weight in generated_weights.values()
+    ):
+        raise ValueError(
+            "SDLC phase importance weights must be "
+            "positive finite numbers"
+        )
+
+    return SDLCPlanResult.model_validate(
+        result.model_dump()
+    )
+
+
+
+def redistribute_sdlc_duration(
+    plan: SDLCPlanResult,
+    phase_name: str,
+    new_duration_weeks: int,
+) -> SDLCPlanResult:
+
+    if new_duration_weeks < 1:
+        raise ValueError("Phase duration must be positive")
+
+    phases = plan.phases
+
+    phase_names = [phase.name for phase in phases]
+
+    if phase_name not in phase_names:
+        raise ValueError("Phase not found")
+
+    if phase_names != SDLC_PHASES[plan.methodology]:
+        raise ValueError("Invalid SDLC phase structure")
+
+    if sum(
+        phase.estimated_duration_weeks for phase in phases
+    ) != plan.total_duration_weeks:
+        raise ValueError("Invalid total project duration")
+
+    target_index = phase_names.index(phase_name)
+
+    remaining_duration = (
+        plan.total_duration_weeks - new_duration_weeks
+    )
+
+    other_indices = [
+        i for i in range(len(phases))
+        if i != target_index
+    ]
+
+    if remaining_duration < len(other_indices):
+        raise ValueError(
+            "Not enough weeks for the remaining phases"
+        )
+
+    # Keep at least one week for every other phase.
+    available_weeks = remaining_duration - len(other_indices)
+
+    phase_weights = get_sdlc_characteristic_weights(plan)
+
+    weights = [
+        phase_weights[phases[i].name]
+        * phases[i].estimated_duration_weeks
+        for i in other_indices
+    ]
+
+    total_weight = sum(weights)
+
+    raw_allocations = [
+        available_weeks * weight / total_weight
+        for weight in weights
+    ]
+
+    allocations = [int(value) for value in raw_allocations]
+
+    leftover = available_weeks - sum(allocations)
+
+    # Assign rounding remainders to the largest fractions.
+    remainder_order = sorted(
+        range(len(raw_allocations)),
+        key=lambda i: raw_allocations[i] - allocations[i],
+        reverse=True,
+    )
+
+    for i in remainder_order[:leftover]:
+        allocations[i] += 1
+
+    updated_phases = list(phases)
+
+    updated_phases[target_index] = phases[target_index].model_copy(
+        update={"estimated_duration_weeks": new_duration_weeks}
+    )
+
+    for index, allocation in zip(other_indices, allocations):
+        updated_phases[index] = phases[index].model_copy(
+            update={"estimated_duration_weeks": allocation + 1}
+        )
+
+    return plan.model_copy(
+        update={"phases": updated_phases}
     )
