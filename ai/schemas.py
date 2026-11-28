@@ -796,10 +796,19 @@ class SDLCPlanResult(BaseSchema):
     )
 
 
-class SDLCGeminiResponse(SDLCPlanResult):
-    phase_importance_weights: dict[str, float] = Field(
-        min_length=1
+class SDLCPhaseWeight(BaseSchema):
+    phase_name: str = Field(min_length=1)
+    weight: float = Field(gt=0)
+
+
+class SDLCGeminiResponse(BaseSchema):
+    methodology: Literal["Agile", "Waterfall", "Spiral"]
+    total_duration_weeks: int = Field(ge=1)
+    phases: list[SDLCPhase] = Field(min_length=1)
+    project_characteristics: list[str] = Field(
+        default_factory=list
     )
+    phase_weights: list[SDLCPhaseWeight] = Field(min_length=1)
 
 class SDLCDurationUpdateInput(BaseSchema):
     plan: SDLCPlanResult
