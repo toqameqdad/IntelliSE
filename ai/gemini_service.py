@@ -250,17 +250,24 @@ def reanalyze_project(
 
 
 def generate_srs(data: SRSInput) -> SRSResult:
-    functional_requirements = "\n".join(
-        f"- {item.description}"
-        for item in data.functional_requirements
+    functional_requirements = json.dumps(
+        [
+            item.model_dump(by_alias=True)
+            for item in data.functional_requirements
+        ],
+        ensure_ascii=False,
+        indent=2,
     )
 
-    non_functional_requirements = "\n".join(
-        f"- {item.description} (Priority: {item.priority})"
-        for item in data.non_functional_requirements
+    non_functional_requirements = json.dumps(
+        [
+            item.model_dump(by_alias=True)
+            for item in data.non_functional_requirements
+        ],
+        ensure_ascii=False,
+        indent=2,
     )
 
-        
     prompt = f"""
     You are a professional software requirements analyst.
 
