@@ -16,6 +16,25 @@ from schemas import SDLCPlanInput, SDLCPlanResult, SDLCDurationUpdateInput
 
 client = TestClient(app)
 
+
+def gemini_sdlc_json(plan):
+    """Build the structured payload expected from Gemini."""
+    payload = plan.model_dump(by_alias=True)
+    payload.pop("phaseImportanceWeights", None)
+    payload["phaseWeights"] = [
+        {
+            "phaseName": phase.name,
+            "weight": plan.phase_importance_weights.get(
+                phase.name, 1.0
+            ),
+        }
+        for phase in plan.phases
+    ]
+    import json
+    return json.dumps(payload)
+
+
+
 @pytest.fixture
 def sample_plan():
     phase_names = [
@@ -332,9 +351,7 @@ def test_generate_sdlc_rejects_wrong_phase_order(
     )
 
     fake_response = MagicMock()
-    fake_response.text = wrong_plan.model_dump_json(
-        by_alias=True
-    )
+    fake_response.text = gemini_sdlc_json(wrong_plan)
 
     fake_client = MagicMock()
     fake_client.models.generate_content.return_value = (
@@ -386,9 +403,7 @@ def test_generate_sdlc_rejects_incorrect_duration_total(
     )
 
     fake_response = MagicMock()
-    fake_response.text = wrong_plan.model_dump_json(
-        by_alias=True
-    )
+    fake_response.text = gemini_sdlc_json(wrong_plan)
 
     fake_client = MagicMock()
     fake_client.models.generate_content.return_value = (
@@ -442,9 +457,7 @@ def test_generate_sdlc_rejects_wrong_requested_duration(
     )
 
     fake_response = MagicMock()
-    fake_response.text = wrong_plan.model_dump_json(
-        by_alias=True
-    )
+    fake_response.text = gemini_sdlc_json(wrong_plan)
 
     fake_client = MagicMock()
     fake_client.models.generate_content.return_value = (
@@ -494,9 +507,7 @@ def test_generate_sdlc_estimates_duration_when_not_provided(
     )
     # Simulate Gemini estimating a 20-week plan.
     fake_response = MagicMock()
-    fake_response.text = sample_plan.model_dump_json(
-        by_alias=True
-    )
+    fake_response.text = gemini_sdlc_json(sample_plan)
 
     fake_client = MagicMock()
     fake_client.models.generate_content.return_value = (
@@ -542,9 +553,7 @@ def test_generate_sdlc_rejects_wrong_methodology(
     )
 
     fake_response = MagicMock()
-    fake_response.text = wrong_plan.model_dump_json(
-        by_alias=True
-    )
+    fake_response.text = gemini_sdlc_json(wrong_plan)
 
     fake_client = MagicMock()
     fake_client.models.generate_content.return_value = (
