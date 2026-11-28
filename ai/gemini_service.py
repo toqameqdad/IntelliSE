@@ -14,6 +14,7 @@ from schemas import (
     RequirementsResult,
     SRSInput,
     SRSResult,
+    validate_srs_coverage,
     UseCaseDiagramResult,
     ActivityDiagramResult,
     ObjectDiagramResult,
@@ -519,7 +520,8 @@ def generate_srs(data: SRSInput) -> SRSResult:
     if not response.text:
         raise ValueError("Gemini returned an empty response")
 
-    return SRSResult.model_validate_json(response.text)
+    result = SRSResult.model_validate_json(response.text)
+    return validate_srs_coverage(data, result)
 
 
 
