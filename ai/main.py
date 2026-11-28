@@ -6,6 +6,8 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 
+from ai_errors import generation_error_response
+
 from schemas import (
     ClarificationAnswersInput,
     ClarificationResult,
@@ -58,16 +60,9 @@ def clarify_project(project: ProjectInput):
     try:
         return analyze_project(project)
 
-    except Exception:
+    except Exception as exc:
         logger.exception("Project clarification failed")
-
-        return JSONResponse(
-            status_code=500,
-            content={
-                "code": "AI_GENERATION_FAILED",
-                "message": "Failed to analyze project description.",
-            },
-        )
+        return generation_error_response(exc, "Failed to analyze project description.")
 
 
 @app.post(
@@ -80,16 +75,9 @@ def process_clarification_answers(
     try:
         return reanalyze_project(data)
 
-    except Exception:
+    except Exception as exc:
         logger.exception("Clarification answer processing failed")
-
-        return JSONResponse(
-            status_code=500,
-            content={
-                "code": "AI_GENERATION_FAILED",
-                "message": "Failed to reanalyze project information.",
-            },
-        )
+        return generation_error_response(exc, "Failed to reanalyze project information.")
 
 
 @app.post(
@@ -102,16 +90,9 @@ def generate_project_requirements(
     try:
         return generate_requirements(project)
 
-    except Exception:
+    except Exception as exc:
         logger.exception("Requirements generation failed")
-
-        return JSONResponse(
-            status_code=500,
-            content={
-                "code": "AI_GENERATION_FAILED",
-                "message": "Failed to generate requirements.",
-            },
-        )
+        return generation_error_response(exc, "Failed to generate requirements.")
 
 
 @app.post(
@@ -122,16 +103,9 @@ def generate_project_srs(data: SRSInput):
     try:
         return generate_srs(data)
 
-    except Exception:
+    except Exception as exc:
         logger.exception("SRS generation failed")
-
-        return JSONResponse(
-            status_code=500,
-            content={
-                "code": "AI_GENERATION_FAILED",
-                "message": "Failed to generate SRS.",
-            },
-        )
+        return generation_error_response(exc, "Failed to generate SRS.")
 
 
 @app.post(
@@ -142,15 +116,9 @@ def recommend_project_methodology(data: MethodologyInput):
     try:
         return recommend_methodology(data)
 
-    except Exception:
+    except Exception as exc:
         logger.exception("Methodology recommendation failed")
-        return JSONResponse(
-            status_code=500,
-            content={
-                "code": "AI_GENERATION_FAILED",
-                "message": "Failed to recommend development methodology.",
-            },
-        )
+        return generation_error_response(exc, "Failed to recommend development methodology.")
 
 
 @app.post(
@@ -163,15 +131,9 @@ def analyze_project_methodology_compatibility(
     try:
         return analyze_methodology_compatibility(data)
 
-    except Exception:
+    except Exception as exc:
         logger.exception("Methodology compatibility analysis failed")
-        return JSONResponse(
-            status_code=500,
-            content={
-                "code": "AI_GENERATION_FAILED",
-                "message": "Failed to analyze methodology compatibility.",
-            },
-        )
+        return generation_error_response(exc, "Failed to analyze methodology compatibility.")
 
 
 @app.post(
@@ -184,16 +146,9 @@ def generate_project_context_diagram(data: DiagramGenerationInput):
 
         return generate_context_diagram(srs_content)
 
-    except Exception:
+    except Exception as exc:
         logger.exception("Context diagram generation failed")
-
-        return JSONResponse(
-            status_code=500,
-            content={
-                "code": "AI_GENERATION_FAILED",
-                "message": "Failed to generate context diagram.",
-            },
-        )
+        return generation_error_response(exc, "Failed to generate context diagram.")
 
 
 @app.post(
@@ -206,16 +161,9 @@ def generate_project_use_case_diagram(data: DiagramGenerationInput):
 
         return generate_use_case_diagram(srs_content)
 
-    except Exception:
+    except Exception as exc:
         logger.exception("Use case diagram generation failed")
-
-        return JSONResponse(
-            status_code=500,
-            content={
-                "code": "AI_GENERATION_FAILED",
-                "message": "Failed to generate use case diagram.",
-            },
-        )
+        return generation_error_response(exc, "Failed to generate use case diagram.")
 
 
 
@@ -240,16 +188,9 @@ def generate_activity_diagram_endpoint(data: DiagramGenerationInput):
 
         return result
 
-    except Exception:
+    except Exception as exc:
         logger.exception("Activity diagram generation failed")
-
-        return JSONResponse(
-            status_code=500,
-            content={
-                "code": "AI_GENERATION_FAILED",
-                "message": "Failed to generate activity diagram.",
-            },
-        )
+        return generation_error_response(exc, "Failed to generate activity diagram.")
 
 
 
@@ -274,16 +215,9 @@ def generate_object_diagram_endpoint(data: DiagramGenerationInput):
 
         return result
 
-    except Exception:
+    except Exception as exc:
         logger.exception("Object diagram generation failed")
-
-        return JSONResponse(
-            status_code=500,
-            content={
-                "code": "AI_GENERATION_FAILED",
-                "message": "Failed to generate object diagram.",
-            },
-        )
+        return generation_error_response(exc, "Failed to generate object diagram.")
 
 
 @app.exception_handler(RequestValidationError)
