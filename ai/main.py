@@ -21,6 +21,7 @@ from schemas import (
     MethodologyRecommendationResult,
     MethodologyCompatibilityInput,
     MethodologyCompatibilityResult,
+    DiagramGenerationInput,
 )
 from gemini_service import (
     analyze_project,
@@ -176,9 +177,9 @@ def analyze_project_methodology_compatibility(
     "/api/ai/diagrams/context/generate",
     response_model=ContextDiagramResult,
 )
-def generate_project_context_diagram(data: dict):
+def generate_project_context_diagram(data: DiagramGenerationInput):
     try:
-        srs_content = json.dumps(data, ensure_ascii=False)
+        srs_content = json.dumps(data.root, ensure_ascii=False)
 
         return generate_context_diagram(srs_content)
 
@@ -198,9 +199,9 @@ def generate_project_context_diagram(data: dict):
     "/api/ai/diagrams/use-case/generate",
     response_model=UseCaseDiagramResult,
 )
-def generate_project_use_case_diagram(data: dict):
+def generate_project_use_case_diagram(data: DiagramGenerationInput):
     try:
-        srs_content = json.dumps(data, ensure_ascii=False)
+        srs_content = json.dumps(data.root, ensure_ascii=False)
 
         return generate_use_case_diagram(srs_content)
 
@@ -226,11 +227,11 @@ def generate_project_use_case_diagram(data: dict):
     response_model=ActivityDiagramResult,
     include_in_schema=False,
 )
-def generate_activity_diagram_endpoint(data: dict):
+def generate_activity_diagram_endpoint(data: DiagramGenerationInput):
 
     try:
         srs_content = json.dumps(
-            data,
+            data.root,
             ensure_ascii=False,
         )
 
@@ -260,11 +261,11 @@ def generate_activity_diagram_endpoint(data: dict):
     response_model=ObjectDiagramResult,
     include_in_schema=False,
 )
-def generate_object_diagram_endpoint(data: dict):
+def generate_object_diagram_endpoint(data: DiagramGenerationInput):
 
     try:
         srs_content = json.dumps(
-            data,
+            data.root,
             ensure_ascii=False,
         )
 
